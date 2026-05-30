@@ -10,6 +10,232 @@ const PHONE_DTMF_ONLY = false;
 const OFFICE_OPEN_MINUTES = 8 * 60;
 const OFFICE_CLOSE_MINUTES = 16 * 60;
 
+const DEFAULT_TENANT_SLUG = () =>
+  String(process.env.DEFAULT_TENANT_SLUG || "smilesquad").trim().toLowerCase();
+
+const DEFAULT_OPERATORY_RULES = {
+  treatmentOperatoryId: 4,
+  allowedByType: {
+    Cleaning: [6, 2],
+    Emergency: [6, 2],
+    Consultation: [3],
+    Treatment: [4],
+  },
+};
+
+function normalizeE164(did) {
+  const trimmed = String(did || "").trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("+")) return trimmed;
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return digits ? `+${digits}` : "";
+}
+
+function operatoryRulesFromEnv() {
+  const rules = {
+    treatmentOperatoryId: DEFAULT_OPERATORY_RULES.treatmentOperatoryId,
+    allowedByType: { ...DEFAULT_OPERATORY_RULES.allowedByType },
+  };
+  const treatment = process.env.SMILE_SQUAD_BOOKING_OPERATORY_TREATMENT;
+  if (treatment?.trim()) {
+    const id = Number(treatment);
+    if (Number.isFinite(id) && id > 0) rules.treatmentOperatoryId = id;
+  }
+  const json = process.env.SMILE_SQUAD_BOOKING_OPERATORIES_BY_TYPE;
+  if (json?.trim()) {
+    try {
+      const parsed = JSON.parse(json);
+      rules.allowedByType = { ...rules.allowedByType, ...parsed };
+    } catch {
+      /* ignore */
+    }
+  }
+  return rules;
+}
+
+function parseOperatoryRulesJson(raw) {
+  if (!raw) return operatoryRulesFromEnv();
+  try {
+    const obj = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return {
+      treatmentOperatoryId:
+        Number(obj.treatmentOperatoryId) > 0
+          ? Number(obj.treatmentOperatoryId)
+          : DEFAULT_OPERATORY_RULES.treatmentOperatoryId,
+      allowedByType: {
+        ...DEFAULT_OPERATORY_RULES.allowedByType,
+        ...(obj.allowedByType && typeof obj.allowedByType === "object" ? obj.allowedByType : {}),
+      },
+    };
+  } catch {
+    return operatoryRulesFromEnv();
+  }
+}
+
+function getOperatoryRulesFromEvent(event) {
+  const sess = event?.sessionState?.sessionAttributes ?? {};
+  return parseOperatoryRulesJson(sess.operatoryRulesJson);
+}
+
+function practiceNameFromEvent(event) {
+  const sess = event?.sessionState?.sessionAttributes ?? {};
+  return (
+    String(sess.practiceName || "").trim() ||
+    String(process.env.DEFAULT_PRACTICE_NAME || "Smile Squad Pediatric Dentistry").trim()
+  );
+}
+
+function botDisplayNameFromEvent(event) {
+  const sess = event?.sessionState?.sessionAttributes ?? {};
+  return String(sess.botDisplayName || "").trim() || "Amy";
+}
+
+function tenantSlugFromEvent(event) {
+  const sess = event?.sessionState?.sessionAttributes ?? {};
+  return String(sess.tenantSlug || "").trim().toLowerCase() || DEFAULT_TENANT_SLUG();
+}
+
+function farewellMessage(event, tail) {
+  const name = practiceNameFromEvent(event);
+  const suffix = tail ? ` ${tail}` : "";
+  return `Thank you for calling ${name}${suffix}, have a great day.`;
+}
+
+function extractCalledDid(event) {
+  const sess = event?.sessionState?.sessionAttributes ?? {};
+  const fromSess = sess.calledDid || sess.CalledNumber || sess.systemEndpointAddress;
+  if (fromSess) return normalizeE164(fromSess);
+
+  const req = event?.requestAttributes ?? {};
+  const fromReq =
+    req.CalledNumber ||
+    req.calledDid ||
+    req.x_amz_lex_connect_called_number ||
+    req["x-amz-lex:connect-called-number"];
+  if (fromReq) return normalizeE164(fromReq);
+
+  if (process.env.DEFAULT_CALLED_DID?.trim()) {
+    return normalizeE164(process.env.DEFAULT_CALLED_DID);
+  }
+  return "";
+}
+
+async function fetchResolvePhone(did) {
+  const secret = process.env.PLATFORM_INTERNAL_SECRET?.trim();
+  const base = process.env.API_BASE_URL?.trim();
+  if (!secret || !base) {
+    console.warn("RESOLVE_PHONE_SKIP: missing PLATFORM_INTERNAL_SECRET or API_BASE_URL");
+    return null;
+  }
+
+  const u = new URL(base.replace(/\/api\/book\/?$/i, "").replace(/\/+$/, ""));
+  const url = `${u.origin}/api/internal/resolve-phone?did=${encodeURIComponent(did)}`;
+
+  const res = await fetch(url, {
+    headers: { "x-platform-secret": secret },
+  });
+  const text = await res.text();
+  let body;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = null;
+  }
+
+  if (!res.ok) {
+    console.warn("RESOLVE_PHONE_FAILED:", res.status, text?.slice(0, 300));
+    return null;
+  }
+  return body;
+}
+
+function tenantSessionPatchFromResolve(resolved) {
+  const prompts = resolved?.promptsConfig && typeof resolved.promptsConfig === "object"
+    ? resolved.promptsConfig
+    : {};
+  const displayName =
+    typeof resolved.botDisplayName === "string" && resolved.botDisplayName.trim()
+      ? resolved.botDisplayName.trim()
+      : typeof prompts.displayName === "string"
+        ? prompts.displayName.trim()
+        : "Amy";
+
+  return {
+    tenantSlug: resolved.tenantSlug,
+    tenantId: resolved.tenantId,
+    botId: resolved.botId,
+    botKey: resolved.botKey || "booking",
+    practiceName: resolved.practiceName,
+    botDisplayName: displayName,
+    operatoryRulesJson: JSON.stringify(resolved.operatoryRules || DEFAULT_OPERATORY_RULES),
+    tenantResolved: "true",
+  };
+}
+
+function fallbackTenantSessionPatch() {
+  const slug = DEFAULT_TENANT_SLUG();
+  return {
+    tenantSlug: slug,
+    practiceName: process.env.DEFAULT_PRACTICE_NAME || "Smile Squad Pediatric Dentistry",
+    botDisplayName: "Amy",
+    operatoryRulesJson: JSON.stringify(operatoryRulesFromEnv()),
+    tenantResolved: "fallback",
+  };
+}
+
+async function ensureTenantOnEvent(event) {
+  const sess = event?.sessionState?.sessionAttributes ?? {};
+  if (sess.tenantResolved && sess.tenantSlug && sess.operatoryRulesJson) {
+    return event;
+  }
+
+  const did = extractCalledDid(event);
+  let patch = fallbackTenantSessionPatch();
+
+  if (did) {
+    try {
+      const resolved = await fetchResolvePhone(did);
+      if (resolved?.tenantSlug) {
+        if (resolved.features?.voice === false) {
+          return {
+            event,
+            blocked: true,
+            message:
+              "Voice scheduling is not available for this practice right now. Please call back during office hours.",
+          };
+        }
+        patch = tenantSessionPatchFromResolve(resolved);
+        console.log("TENANT_RESOLVED:", {
+          did,
+          tenantSlug: patch.tenantSlug,
+          botId: patch.botId,
+        });
+      }
+    } catch (e) {
+      console.warn("RESOLVE_PHONE_ERROR:", e?.message || e);
+    }
+  } else {
+    console.warn("RESOLVE_PHONE_NO_DID: using fallback tenant", patch.tenantSlug);
+  }
+
+  return {
+    event: {
+      ...event,
+      sessionState: {
+        ...event.sessionState,
+        sessionAttributes: {
+          ...sess,
+          ...patch,
+          calledDid: did || sess.calledDid || "",
+        },
+      },
+    },
+    blocked: false,
+  };
+}
+
 /** Lex may send interpretedValue as number (phone, member id) — never call .trim() on raw value. */
 function slotRaw(slots, key) {
   const slot = slots?.[key];
@@ -683,6 +909,22 @@ function withLexSession(event, response) {
 
 export const handler = async (event) => {
   try {
+    const tenantResult = await ensureTenantOnEvent(event);
+    if (tenantResult.blocked) {
+      return withLexSession(event, {
+        sessionState: {
+          dialogAction: { type: "Close" },
+          intent: {
+            name: event?.sessionState?.intent?.name ?? "PatientBooking",
+            slots: event?.sessionState?.intent?.slots ?? {},
+            state: "Fulfilled",
+          },
+        },
+        messages: [{ contentType: "PlainText", content: tenantResult.message }],
+      });
+    }
+    event = tenantResult.event;
+
     const inputTranscript = getCallerTranscript(event);
     if (inputTranscript) {
       event = { ...event, inputTranscript };
@@ -932,7 +1174,7 @@ async function handleLexDialog(event) {
         event,
         intentName,
         slots,
-        "Thank you for calling Smile Squad, have a great day."
+        farewellMessage(event, "have a great day.")
       );
     }
 
@@ -945,7 +1187,7 @@ async function handleLexDialog(event) {
         event,
         intentName,
         slots,
-        "We are currently unable to provide care for special needs patients. Please contact another pediatric dentist. Thank you for calling Smile Squad, have a great day."
+        `We are currently unable to provide care for special needs patients. Please contact another pediatric dentist. ${farewellMessage(event, "have a great day.")}`
       );
     }
 
@@ -958,7 +1200,7 @@ async function handleLexDialog(event) {
         event,
         intentName,
         slots,
-        "Please reach out to a general dentist in the area for a permanent tooth. Thank you for calling Smile Squad, have a great day."
+        `Please reach out to a general dentist in the area for a permanent tooth. ${farewellMessage(event, "have a great day.")}`
       );
     }
 
@@ -1094,7 +1336,7 @@ async function handleLexDialog(event) {
         event,
         intentName,
         slots,
-        "Please reach out to a general dentist in the area for a permanent tooth. Thank you for calling Smile Squad, have a great day."
+        `Please reach out to a general dentist in the area for a permanent tooth. ${farewellMessage(event, "have a great day.")}`
       );
     }
 
@@ -1208,7 +1450,7 @@ async function handleLexDialog(event) {
       traumaPainInfection,
     }, {
       successMessage:
-        "Someone from our office will call you to confirm the appointment. Thank you for calling Smile Squad, have a great day.",
+        `Someone from our office will call you to confirm the appointment. ${farewellMessage(event, "have a great day.")}`,
     });
   }
 
@@ -1249,7 +1491,7 @@ async function handleLexDialog(event) {
         event,
         intentName,
         slots,
-        "Please follow up with the referral and make an appointment externally according to the referral. Thank you for calling Smile Squad, have a great day."
+        `Please follow up with the referral and make an appointment externally according to the referral. ${farewellMessage(event, "have a great day.")}`
       );
     }
 
@@ -1352,7 +1594,7 @@ async function handleLexDialog(event) {
       referredOut,
     }, {
       successMessage:
-        "Someone from our office will call you to confirm the appointment. Thank you for calling Smile Squad, have a great day.",
+        `Someone from our office will call you to confirm the appointment. ${farewellMessage(event, "have a great day.")}`,
     });
   }
 
@@ -2476,7 +2718,7 @@ async function finishBooking(event, intentName, slots, s, opts = {}) {
     const payload = buildPayloadFromSlots(slots, s);
     console.log("📦 ORYX PAYLOAD:", JSON.stringify(payload, null, 2));
 
-    const result = await sendToOryx(payload);
+    const result = await sendToOryx(payload, event);
     console.log("✅ ORYX RESPONSE:", JSON.stringify(result, null, 2));
 
     const booked = result?.success === true && result?.data?.success === true;
@@ -2635,33 +2877,25 @@ function apptTypeForAvailabilityFallback(bookApptType) {
   return t || "Cleaning";
 }
 
-/**
- * Oryx `operatoryId` is not the same as physical "Room N" labels.
- * Operatory rules (OP2=2 Cleaning/Emergency, OP3=3 Consultation, OP4=4 Treatment).
- * Env: SMILE_SQUAD_BOOKING_OPERATORY_TREATMENT default `4`
- */
-function treatmentOperatoryId() {
-  const id = Number(process.env.SMILE_SQUAD_BOOKING_OPERATORY_TREATMENT ?? "4");
+/** Tenant operatory rules from resolve-phone (session operatoryRulesJson). */
+function treatmentOperatoryId(rules) {
+  const id = Number(rules?.treatmentOperatoryId ?? 4);
   return Number.isFinite(id) && id > 0 ? id : 4;
 }
 
-/** Oryx ids for smilesquadpd: OP2≈6, OP3=3, OP4=4 (override via env JSON on API side). */
-const DEFAULT_OPS_BY_TYPE = {
-  Cleaning: [6, 2],
-  Emergency: [6, 2],
-  Consultation: [3],
-};
-
-function operatoryAllowSet(bookApptType) {
+function operatoryAllowSet(bookApptType, rules) {
   const t = String(bookApptType || "").trim() || "Cleaning";
-  if (t === "Treatment") return new Set([treatmentOperatoryId()]);
-  const list = DEFAULT_OPS_BY_TYPE[t] || [2];
-  return new Set(list);
+  if (t === "Treatment") return new Set([treatmentOperatoryId(rules)]);
+  const list = rules?.allowedByType?.[t];
+  if (Array.isArray(list) && list.length) {
+    return new Set(list.map((n) => Number(n)).filter((n) => Number.isFinite(n)));
+  }
+  return new Set([6, 2]);
 }
 
-function filterSlotsByOperatory(slots, bookApptType) {
+function filterSlotsByOperatory(slots, bookApptType, rules) {
   const arr = Array.isArray(slots) ? slots : [];
-  const allow = operatoryAllowSet(bookApptType);
+  const allow = operatoryAllowSet(bookApptType, rules);
   return arr.filter((s) => allow.has(Number(s?.operatoryId)));
 }
 
@@ -2676,11 +2910,11 @@ function filterSlotsWithValidOralId(slots) {
  * Slots for booking: operatory allow-list + prefer oralId.
  * Treatment: if no slot on the treatment operatory (default id 3) but schedule has other rows, widen once.
  */
-function computeAvailableSlots(availRaw, bookApptType) {
+function computeAvailableSlots(availRaw, bookApptType, rules) {
   const raw = Array.isArray(availRaw) ? availRaw : [];
   const appt = String(bookApptType || "").trim();
 
-  let slots = filterSlotsWithValidOralId(filterSlotsByOperatory(raw, appt));
+  let slots = filterSlotsWithValidOralId(filterSlotsByOperatory(raw, appt, rules));
   if (slots.length) return { slots, widenedOperatory: false };
 
   if (appt === "Treatment" && raw.length) {
@@ -2749,7 +2983,7 @@ function startMinutesFromSlot(slot) {
 }
 
 /** Exact match, else closest by wall-clock distance (not first row of the day). */
-function pickBestSlot(availSlots, desiredHour, desiredMinute, bookApptType) {
+function pickBestSlot(availSlots, desiredHour, desiredMinute, bookApptType, rules) {
   const slots = Array.isArray(availSlots) ? availSlots : [];
   if (!slots.length) return null;
 
@@ -2765,7 +2999,7 @@ function pickBestSlot(availSlots, desiredHour, desiredMinute, bookApptType) {
 
   if (!Number.isFinite(want)) return slots[0] || null;
 
-  const allow = [...operatoryAllowSet(bookApptType)];
+  const allow = [...operatoryAllowSet(bookApptType, rules)];
   const tieRank = (op) => {
     const i = allow.indexOf(Number(op));
     return i === -1 ? 50 : i;
@@ -2837,9 +3071,18 @@ function addMinutes(h, m, add) {
   return { endHour, endMinute };
 }
 
-async function fetchAvailability({ baseUrl, apiKey, previewCode, dateISO, apptType }) {
+async function fetchAvailability({
+  baseUrl,
+  apiKey,
+  previewCode,
+  dateISO,
+  apptType,
+  tenantSlug,
+}) {
+  const slug = tenantSlug || DEFAULT_TENANT_SLUG();
+  const root = baseUrl.replace(/\/api\/book\/?$/i, "").replace(/\/+$/, "");
   const url =
-    `${baseUrl.replace(/\/+$/, "")}/api/availability` +
+    `${root}/api/t/${encodeURIComponent(slug)}/availability` +
     `?date=${encodeURIComponent(dateISO)}` +
     `&apptType=${encodeURIComponent(apptType)}` +
     `&firstAvail=false` +
@@ -2866,10 +3109,7 @@ async function fetchAvailability({ baseUrl, apiKey, previewCode, dateISO, apptTy
   return Array.isArray(json.data) ? json.data : [];
 }
 
-// Phase 2: resolve tenant+bot via GET /api/internal/resolve-phone?did=... (PLATFORM_INTERNAL_SECRET)
-// and use tenant-scoped operatory rules instead of duplicated env logic in this file.
-
-async function sendToOryx(bookPayload) {
+async function sendToOryx(bookPayload, event) {
   const BOOKING_URL = process.env.API_BASE_URL;
   const API_KEY = process.env.CONNECT_WEBHOOK_SECRET;
   const PREVIEW = process.env.WEB_FORM_PREVIEW_CODE || "";
@@ -2879,6 +3119,8 @@ async function sendToOryx(bookPayload) {
 
   const u = new URL(BOOKING_URL);
   const baseUrl = `${u.protocol}//${u.host}`;
+  const tenantSlug = tenantSlugFromEvent(event);
+  const rules = getOperatoryRulesFromEvent(event);
 
   const dateISO = `${String(bookPayload.date.year).padStart(4, "0")}-${String(
     bookPayload.date.month
@@ -2888,7 +3130,7 @@ async function sendToOryx(bookPayload) {
   const desiredHour = bookPayload.start.hour;
   const desiredMinute = bookPayload.start.minute;
 
-  /** Must match GET /api/availability apptType — Oryx rejects mismatched book vs schedule. */
+  /** Must match GET availability apptType — Oryx rejects mismatched book vs schedule. */
   let lastQueriedApptType = apptType;
 
   let availRaw = await fetchAvailability({
@@ -2897,11 +3139,13 @@ async function sendToOryx(bookPayload) {
     previewCode: PREVIEW,
     dateISO,
     apptType: lastQueriedApptType,
+    tenantSlug,
   });
 
   let { slots: avail, widenedOperatory } = computeAvailableSlots(
     availRaw,
-    apptType
+    apptType,
+    rules
   );
 
   if (!avail.length) {
@@ -2914,10 +3158,12 @@ async function sendToOryx(bookPayload) {
         previewCode: PREVIEW,
         dateISO,
         apptType: lastQueriedApptType,
+        tenantSlug,
       });
       ({ slots: avail, widenedOperatory } = computeAvailableSlots(
         availRaw,
-        apptType
+        apptType,
+        rules
       ));
     }
 
@@ -2925,11 +3171,11 @@ async function sendToOryx(bookPayload) {
 
   if (!avail.length) {
     throw new Error(
-      "No slots in the allowed operatories for this service on that date. Set SMILE_SQUAD_BOOKING_OPERATORY_TREATMENT (default OP4 = operatoryId 4)."
+      "No slots in the allowed operatories for this service on that date."
     );
   }
 
-  const chosen = pickBestSlot(avail, desiredHour, desiredMinute, apptType);
+  const chosen = pickBestSlot(avail, desiredHour, desiredMinute, apptType, rules);
   if (!chosen) throw new Error("No availability returned for that date.");
 
   const { start: slotStart, end: slotEnd } = slotStartEndFromChosen(chosen);
@@ -2968,7 +3214,11 @@ async function sendToOryx(bookPayload) {
 
   const res = await fetch(BOOKING_URL, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-api-key": API_KEY },
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": API_KEY,
+      "x-tenant-slug": tenantSlug,
+    },
     body: JSON.stringify(patched),
   });
 

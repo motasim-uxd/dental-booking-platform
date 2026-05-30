@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { handleAvailability } from "@/lib/booking/availability";
 import { assertWebFormFeature, loadBookingContext } from "@/lib/booking/context";
-import { assertWebPreviewCode } from "@/lib/booking/preview-auth";
+import { assertTenantChannelAuth } from "@/lib/booking/preview-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -26,7 +26,7 @@ export async function GET(req: Request, context: RouteContext) {
       return NextResponse.json({ success: false, error: webForm.error }, { status: webForm.status });
     }
 
-    const auth = assertWebPreviewCode(req, ctx.tenant);
+    const auth = assertTenantChannelAuth(req, ctx.tenant);
     if (!auth.ok) {
       return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }

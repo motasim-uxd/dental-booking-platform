@@ -58,9 +58,12 @@ export interface ResolvePhoneResult {
   tenantSlug: string;
   tenantId: string;
   botId: string;
+  botKey: string;
   botType: BotType;
   practiceName: string;
+  botDisplayName: string;
   pmsType: PmsType;
   operatoryRules: OperatoryRulesConfig;
   capabilities: Record<string, unknown>;
+  features: TenantFeatures;
 }

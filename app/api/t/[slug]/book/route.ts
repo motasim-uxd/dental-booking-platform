@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { handleBook } from "@/lib/booking/book";
 import { assertWebFormFeature, loadBookingContext } from "@/lib/booking/context";
-import { assertWebPreviewCode } from "@/lib/booking/preview-auth";
+import { assertTenantChannelAuth } from "@/lib/booking/preview-auth";
 import { rateLimit } from "@/lib/booking/rate-limit";
 
 export const runtime = "nodejs";
@@ -29,7 +29,7 @@ export async function POST(req: Request, context: RouteContext) {
     );
   }
 
-  const auth = assertWebPreviewCode(req, ctx.tenant);
+  const auth = assertTenantChannelAuth(req, ctx.tenant);
   if (!auth.ok) {
     return NextResponse.json({ success: false, error: { message: auth.error } }, { status: auth.status });
   }

@@ -27,7 +27,7 @@ npm run dev
 ```
 
 - Web UI: http://localhost:3000/book  
-- Docs: [docs/phase-0-dev.md](docs/phase-0-dev.md)  
+- Docs: [docs/phase-0-dev.md](docs/phase-0-dev.md), [docs/phase-1-dev.md](docs/phase-1-dev.md), [docs/phase-2-dev.md](docs/phase-2-dev.md)  
 - Roadmap PDF: [docs/Dental-Booking-Platform-Development-Phases.pdf](docs/Dental-Booking-Platform-Development-Phases.pdf)
 
 ## API overview
@@ -47,8 +47,8 @@ Legacy Smile Squad routes: `/api/availability`, `/api/web/book` (tenant `smilesq
 | Phase | Focus |
 |-------|--------|
 | 0 ✓ | Postgres, tenants, Oryx adapter, APIs |
-| 1 | `/book/[slug]`, web form feature gate |
-| 2 | Multi-tenant Lex + `resolve-phone` |
+| 1 ✓ | `/book/[slug]`, web form feature gate |
+| 2 ✓ | Multi-tenant Lex + `resolve-phone` |
 | 3+ | Admin portal, extra bots, Stripe |
 
 ## HIPAA note

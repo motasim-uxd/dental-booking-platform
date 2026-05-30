@@ -16,14 +16,23 @@ export async function resolveTenantBotFromPhone(
 }
 
 export function toResolvePhoneResult(ctx: TenantBotContext): ResolvePhoneResult {
+  const prompts = ctx.bot.promptsConfig ?? {};
+  const displayName =
+    typeof prompts.displayName === "string" && prompts.displayName.trim()
+      ? prompts.displayName.trim()
+      : "Amy";
+
   return {
     tenantSlug: ctx.tenant.slug,
     tenantId: ctx.tenant.id,
     botId: ctx.bot.id,
+    botKey: ctx.bot.botKey,
     botType: ctx.bot.botType,
     practiceName: ctx.tenant.name,
+    botDisplayName: displayName,
     pmsType: ctx.pms.pmsType,
     operatoryRules: ctx.pms.operatoryRules,
     capabilities: ctx.bot.capabilities,
+    features: ctx.tenant.features ?? {},
   };
 }

@@ -1,6 +1,9 @@
-import { timingSafeEqual } from "@/lib/platform-auth";
+import {
+  assertConnectWebhookSecret,
+  timingSafeEqual,
+} from "@/lib/platform-auth";
+import { getEffectiveAccessCode, tenantFeatures } from "@/lib/booking/context";
 import type { Tenant } from "@/lib/tenant/types";
-import { getEffectiveAccessCode } from "@/lib/booking/context";
 
 export function assertWebPreviewCode(
   req: Request,
@@ -20,4 +23,24 @@ export function assertWebPreviewCode(
   }
 
   return { ok: true };
+}
+
+/** Web preview code and/or Connect/Lex shared secret (server-to-server). */
+export function assertTenantChannelAuth(
+  req: Request,
+  tenant: Tenant
+): { ok: true } | { ok: false; status: number; error: string } {
+  const features = tenantFeatures(tenant);
+  const preview = assertWebPreviewCode(req, tenant);
+  if (preview.ok) return preview;
+
+  const connect = assertConnectWebhookSecret(req);
+  if (connect.ok) {
+    if (features.voice === false) {
+      return { ok: false, status: 403, error: "Voice booking is not enabled for this practice" };
+    }
+    return { ok: true };
+  }
+
+  return connect;
 }
