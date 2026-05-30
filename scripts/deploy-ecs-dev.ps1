@@ -1,4 +1,4 @@
-# Build oryx-agent, push to ECR, force ECS to pull new tasks (dev).
+# Build dental-booking-platform, push to ECR (oryx-agent repo), roll ECS dev service.
 # Prereqs: AWS CLI v2, Docker Desktop running, Terraform state in infra/
 param(
   [string]$Region = "us-east-1",
