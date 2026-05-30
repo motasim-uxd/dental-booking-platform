@@ -1,10 +1,13 @@
 FROM node:22-bookworm-slim AS deps
+RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json ./
+COPY prisma ./prisma
 # Retry npm ci (transient Docker network resets are common on Windows hosts).
 RUN for i in 1 2 3; do npm ci && exit 0; echo "npm ci attempt $i failed, retrying..."; sleep 15; done; exit 1
 
 FROM node:22-bookworm-slim AS builder
+RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ARG NEXT_PUBLIC_BUILD_ID=unknown
 ENV NEXT_PUBLIC_BUILD_ID=$NEXT_PUBLIC_BUILD_ID
@@ -14,6 +17,7 @@ COPY . .
 RUN npm run build
 
 FROM node:22-bookworm-slim AS runner
+RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -24,6 +28,9 @@ RUN useradd -m -u 10001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+# Prisma query engine for runtime (Postgres in ECS)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
 USER nextjs
 EXPOSE 3000
