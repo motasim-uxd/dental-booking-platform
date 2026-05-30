@@ -15,8 +15,11 @@ async function main() {
       status: "active",
       features: { voice: true, webForm: true },
       branding: {
-        displayName: "Smile Squad Pediatric Dentistry",
-        tagline: "Pediatric dentistry",
+        displayName: "Smile Squad",
+        tagline: "Pediatric Dentistry",
+        address: "355 W Main St, Leola, PA 17540",
+        phone: "+1 (717) 884-8807",
+        websiteUrl: "https://smilesquad.kids/",
       },
       maxBots: 8,
       webFormAccessCode,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { handleAvailability } from "@/lib/booking/availability";
-import { loadBookingContext } from "@/lib/booking/context";
+import { assertWebFormFeature, loadBookingContext } from "@/lib/booking/context";
 import { assertWebPreviewCode } from "@/lib/booking/preview-auth";
 
 export const runtime = "nodejs";
@@ -19,6 +19,11 @@ export async function GET(req: Request, context: RouteContext) {
 
     if (ctx.tenant.status === "suspended") {
       return NextResponse.json({ success: false, error: "Tenant suspended" }, { status: 403 });
+    }
+
+    const webForm = assertWebFormFeature(ctx.tenant);
+    if (!webForm.ok) {
+      return NextResponse.json({ success: false, error: webForm.error }, { status: webForm.status });
     }
 
     const auth = assertWebPreviewCode(req, ctx.tenant);

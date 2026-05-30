@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { handleBook } from "@/lib/booking/book";
-import { loadBookingContext } from "@/lib/booking/context";
+import { assertWebFormFeature, loadBookingContext } from "@/lib/booking/context";
 import { assertWebPreviewCode } from "@/lib/booking/preview-auth";
 import { rateLimit } from "@/lib/booking/rate-limit";
 
@@ -19,6 +19,14 @@ export async function POST(req: Request, context: RouteContext) {
 
   if (ctx.tenant.status === "suspended") {
     return NextResponse.json({ success: false, error: { message: "Tenant suspended" } }, { status: 403 });
+  }
+
+  const webForm = assertWebFormFeature(ctx.tenant);
+  if (!webForm.ok) {
+    return NextResponse.json(
+      { success: false, error: { message: webForm.error } },
+      { status: webForm.status }
+    );
   }
 
   const auth = assertWebPreviewCode(req, ctx.tenant);

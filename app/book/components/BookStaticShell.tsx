@@ -2,13 +2,20 @@
  * Server-rendered HTML so mobile sees content before the client JS bundle runs.
  * Hidden when wizard UI paints (see booking.css .ss-wizard-ready).
  */
+import type { TenantBookBranding } from "@/lib/booking/tenant-branding";
+
 export default function BookStaticShell({
+  branding,
   initialPreviewCode,
+  requiresAccessCode = false,
 }: {
+  branding: TenantBookBranding;
   initialPreviewCode: string;
+  requiresAccessCode?: boolean;
 }) {
   const hasCode = Boolean(initialPreviewCode.trim());
   const buildId = process.env.NEXT_PUBLIC_BUILD_ID?.trim() || "";
+  const showCodeHint = requiresAccessCode && !hasCode;
 
   return (
     <div
@@ -30,15 +37,23 @@ export default function BookStaticShell({
         }}
       >
         <div style={{ maxWidth: "56rem", margin: "0 auto" }}>
-          <span>355 W Main St, Leola, PA 17540</span>
-          <span style={{ display: "block" }}>Call us at +1 (717) 884-8807</span>
+          {branding.address ? <span>{branding.address}</span> : null}
+          {branding.phone ? (
+            <span style={{ display: branding.address ? "block" : undefined }}>
+              Call us at {branding.phone}
+            </span>
+          ) : null}
         </div>
       </header>
       <header style={{ textAlign: "center", padding: "1.25rem 1rem 0.5rem" }}>
-        <div style={{ fontSize: "1.125rem", fontWeight: 700, color: "#1a3d5c" }}>Smile Squad</div>
-        <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#2d6da8", marginTop: "0.15rem" }}>
-          Pediatric Dentistry
+        <div style={{ fontSize: "1.125rem", fontWeight: 700, color: "#1a3d5c" }}>
+          {branding.displayName}
         </div>
+        {branding.tagline ? (
+          <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#2d6da8", marginTop: "0.15rem" }}>
+            {branding.tagline}
+          </div>
+        ) : null}
       </header>
 
       <main style={{ maxWidth: "56rem", margin: "0 auto", padding: "1.5rem 1.25rem 3rem" }}>
@@ -52,7 +67,7 @@ export default function BookStaticShell({
             padding: "1.5rem",
           }}
         >
-          {!hasCode ? (
+          {showCodeHint ? (
             <>
               <h2>Online scheduling</h2>
               <p className="ss-lead">Loading the booking form…</p>
@@ -79,9 +94,11 @@ export default function BookStaticShell({
           >
             Please wait…
           </p>
-          <p style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "#64748b", textAlign: "center" }}>
-            If this does not change within 30 seconds, refresh the page or call +1 (717) 884-8807.
-          </p>
+          {branding.phone ? (
+            <p style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "#64748b", textAlign: "center" }}>
+              If this does not change within 30 seconds, refresh the page or call {branding.phone}.
+            </p>
+          ) : null}
           {buildId ? (
             <p style={{ marginTop: "1rem", fontSize: "0.7rem", color: "#94a3b8", textAlign: "center" }}>
               Build {buildId}

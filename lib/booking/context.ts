@@ -90,4 +90,17 @@ export function tenantFeatures(tenant: Tenant): TenantFeatures {
   return tenant.features ?? {};
 }
 
+export function isWebFormEnabled(tenant: Tenant): boolean {
+  return tenantFeatures(tenant).webForm !== false;
+}
+
+export function assertWebFormFeature(
+  tenant: Tenant
+): { ok: true } | { ok: false; status: number; error: string } {
+  if (!isWebFormEnabled(tenant)) {
+    return { ok: false, status: 403, error: "Web booking is not enabled for this practice" };
+  }
+  return { ok: true };
+}
+
 export { DEFAULT_OPERATORY_RULES };

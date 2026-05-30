@@ -29,10 +29,9 @@ import {
   slotKeyOf,
   todayISO,
 } from "../lib/booking-utils";
+import type { TenantBookBranding } from "@/lib/booking/tenant-branding";
+import { phoneTelHref } from "@/lib/booking/tenant-branding";
 import { scheduleMarkBookWizardShellReady } from "../lib/wizard-shell";
-
-const PRACTICE_ADDRESS = "355 W Main St, Leola, PA 17540";
-const PRACTICE_PHONE = "+1 (717) 884-8807";
 
 function ToothIcon() {
   return (
@@ -64,14 +63,27 @@ function resolvePreviewCodeFromBrowser(fallback = ""): string {
 }
 
 type BookingWizardProps = {
+  tenantSlug: string;
+  branding: TenantBookBranding;
+  requiresAccessCode?: boolean;
   /** From server `?code=` so mobile does not wait on client hydration to unlock the form. */
   initialPreviewCode?: string;
 };
 
-export default function BookingWizard({ initialPreviewCode = "" }: BookingWizardProps) {
+export default function BookingWizard({
+  tenantSlug,
+  branding,
+  requiresAccessCode = false,
+  initialPreviewCode = "",
+}: BookingWizardProps) {
   const bootCode = initialPreviewCode.trim();
   const [previewCode, setPreviewCode] = useState(bootCode);
-  const [previewCodeReady, setPreviewCodeReady] = useState(Boolean(bootCode));
+  const [previewCodeReady, setPreviewCodeReady] = useState(
+    Boolean(bootCode) || !requiresAccessCode
+  );
+  const practicePhone = branding.phone ?? "";
+  const practiceAddress = branding.address ?? "";
+  const phoneHref = phoneTelHref(practicePhone);
 
   const [step, setStep] = useState<WizardStep>(1);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
@@ -171,7 +183,7 @@ export default function BookingWizard({ initialPreviewCode = "" }: BookingWizard
       setSlotKey("");
       setAvailabilityMsg("");
       setSuggestedDateISO(null);
-      if (!previewCodeReady) {
+      if (requiresAccessCode && !previewCodeReady) {
         setErr("Enter the preview access code to continue.");
         return;
       }
@@ -184,13 +196,18 @@ export default function BookingWizard({ initialPreviewCode = "" }: BookingWizard
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 25_000);
 
-      const codeParam = encodeURIComponent(previewCode.trim());
+      const codeParam = requiresAccessCode ? encodeURIComponent(previewCode.trim()) : "";
       const fetchSlots = async (forDateISO: string, firstAvail: boolean) => {
+        const codeQs = codeParam ? `&code=${codeParam}` : "";
         const res = await fetch(
-          `/api/availability?date=${encodeURIComponent(forDateISO)}&apptType=${encodeURIComponent(
+          `/api/t/${encodeURIComponent(tenantSlug)}/availability?date=${encodeURIComponent(forDateISO)}&apptType=${encodeURIComponent(
             serviceType
-          )}&firstAvail=${firstAvail ? "true" : "false"}&code=${codeParam}`,
-          { cache: "no-store", signal: controller.signal }
+          )}&firstAvail=${firstAvail ? "true" : "false"}${codeQs}`,
+          {
+            cache: "no-store",
+            signal: controller.signal,
+            headers: codeParam ? { "x-preview-code": previewCode.trim() } : undefined,
+          }
         );
         const json = await res.json().catch(() => null);
         return { res, json };
@@ -356,7 +373,7 @@ export default function BookingWizard({ initialPreviewCode = "" }: BookingWizard
         setBusy(false);
       }
     },
-    [previewCode, previewCodeReady, serviceType]
+    [previewCode, previewCodeReady, requiresAccessCode, serviceType, tenantSlug]
   );
 
   useEffect(() => {
@@ -472,9 +489,13 @@ export default function BookingWizard({ initialPreviewCode = "" }: BookingWizard
 
     setBusy(true);
     try {
-      const res = await fetch("/api/web/book", {
+      const bookHeaders: Record<string, string> = { "content-type": "application/json" };
+      if (requiresAccessCode && previewCode.trim()) {
+        bookHeaders["x-preview-code"] = previewCode.trim();
+      }
+      const res = await fetch(`/api/t/${encodeURIComponent(tenantSlug)}/book`, {
         method: "POST",
-        headers: { "content-type": "application/json", "x-preview-code": previewCode.trim() },
+        headers: bookHeaders,
         body: JSON.stringify(payload),
       });
       const json = await res.json().catch(() => null);
@@ -489,19 +510,11 @@ export default function BookingWizard({ initialPreviewCode = "" }: BookingWizard
     }
   }
 
-  if (!previewCodeReady) {
+  if (requiresAccessCode && !previewCodeReady) {
     return (
       <div className="ss-book">
-        <header className="ss-topbar">
-          <div className="ss-topbar-inner">
-            <span>{PRACTICE_ADDRESS}</span>
-            <span>Call us at {PRACTICE_PHONE}</span>
-          </div>
-        </header>
-        <header className="ss-header">
-          <div className="ss-brand-title">Smile Squad</div>
-          <div className="ss-brand-sub">Pediatric Dentistry</div>
-        </header>
+        <PracticeTopBar address={practiceAddress} phone={practicePhone} phoneHref={phoneHref} />
+        <PracticeBrandHeader displayName={branding.displayName} tagline={branding.tagline} />
         <div className="ss-preview-gate">
           <div className="ss-card">
             <h2>Online scheduling</h2>
@@ -545,47 +558,27 @@ export default function BookingWizard({ initialPreviewCode = "" }: BookingWizard
   if (okMsg) {
     return (
       <div className="ss-book">
-        <header className="ss-topbar">
-          <div className="ss-topbar-inner">
-            <span>{PRACTICE_ADDRESS}</span>
-            <span>Call us at {PRACTICE_PHONE}</span>
-          </div>
-        </header>
-        <header className="ss-header">
-          <div className="ss-brand-title">Smile Squad</div>
-          <div className="ss-brand-sub">Pediatric Dentistry</div>
-        </header>
+        <PracticeTopBar address={practiceAddress} phone={practicePhone} phoneHref={phoneHref} />
+        <PracticeBrandHeader displayName={branding.displayName} tagline={branding.tagline} />
         <main className="ss-main">
           <div className="ss-card" style={{ maxWidth: "32rem", margin: "0 auto", textAlign: "center" }}>
             <div className="ss-alert ss-alert-success">{okMsg}</div>
-            <p className="ss-lead" style={{ marginBottom: 0 }}>
-              Questions? Call us at {PRACTICE_PHONE}.
-            </p>
+            {practicePhone ? (
+              <p className="ss-lead" style={{ marginBottom: 0 }}>
+                Questions? Call us at {practicePhone}.
+              </p>
+            ) : null}
           </div>
         </main>
-        <Footer />
+        <BookFooter branding={branding} />
       </div>
     );
   }
 
   return (
     <div className="ss-book" data-web-book="v3-wizard">
-      <header className="ss-topbar">
-        <div className="ss-topbar-inner">
-          <span>{PRACTICE_ADDRESS}</span>
-          <span>
-            Call us at{" "}
-            <a href={`tel:${PRACTICE_PHONE.replace(/\D/g, "")}`} style={{ color: "inherit" }}>
-              {PRACTICE_PHONE}
-            </a>
-          </span>
-        </div>
-      </header>
-
-      <header className="ss-header">
-        <div className="ss-brand-title">Smile Squad</div>
-        <div className="ss-brand-sub">Pediatric Dentistry</div>
-      </header>
+      <PracticeTopBar address={practiceAddress} phone={practicePhone} phoneHref={phoneHref} />
+      <PracticeBrandHeader displayName={branding.displayName} tagline={branding.tagline} />
 
       <nav className="ss-stepper" aria-label="Booking progress">
         <div className="ss-step-labels">
@@ -1021,22 +1014,70 @@ export default function BookingWizard({ initialPreviewCode = "" }: BookingWizard
         )}
       </main>
 
-      <Footer />
+      <BookFooter branding={branding} />
     </div>
   );
 }
 
-function Footer() {
+function PracticeTopBar({
+  address,
+  phone,
+  phoneHref,
+}: {
+  address: string;
+  phone: string;
+  phoneHref: string;
+}) {
+  if (!address && !phone) return null;
+  return (
+    <header className="ss-topbar">
+      <div className="ss-topbar-inner">
+        {address ? <span>{address}</span> : null}
+        {phone ? (
+          <span>
+            Call us at{" "}
+            {phoneHref ? (
+              <a href={phoneHref} style={{ color: "inherit" }}>
+                {phone}
+              </a>
+            ) : (
+              phone
+            )}
+          </span>
+        ) : null}
+      </div>
+    </header>
+  );
+}
+
+function PracticeBrandHeader({
+  displayName,
+  tagline,
+}: {
+  displayName: string;
+  tagline?: string;
+}) {
+  return (
+    <header className="ss-header">
+      <div className="ss-brand-title">{displayName}</div>
+      {tagline ? <div className="ss-brand-sub">{tagline}</div> : null}
+    </header>
+  );
+}
+
+function BookFooter({ branding }: { branding: TenantBookBranding }) {
   const year = new Date().getFullYear();
   return (
     <footer className="ss-footer">
       <span>
         © {year}{" "}
-        <strong style={{ color: "var(--ss-navy)" }}>Smile Squad Pediatric Dentistry</strong>
+        <strong style={{ color: "var(--ss-navy)" }}>{branding.practiceName}</strong>
       </span>
-      <a href="https://smilesquad.kids/" target="_blank" rel="noopener noreferrer">
-        Privacy policy
-      </a>
+      {branding.websiteUrl ? (
+        <a href={branding.websiteUrl} target="_blank" rel="noopener noreferrer">
+          Privacy policy
+        </a>
+      ) : null}
     </footer>
   );
 }
