@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: dental
+      POSTGRES_PASSWORD: dental
+      POSTGRES_DB: dental_booking
+    volumes:
+      - dental_pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dental -d dental_booking"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  whisper:
+    build:
+      context: ./whisper-server
+      dockerfile: Dockerfile
+    ports:
+      - "9000:9000"
+    restart: unless-stopped
+
+volumes:
+  dental_pg_data:
+

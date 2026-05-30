@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dental Booking Platform — Development Phases Roadmap</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    @page { size: A4; margin: 18mm 14mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: #1a1a2e;
+      line-height: 1.55;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px 28px 48px;
+      font-size: 11pt;
+    }
+    .cover {
+      text-align: center;
+      padding: 72px 20px 56px;
+      page-break-after: always;
+      border-bottom: 4px solid #2563eb;
+    }
+    .cover h1 { font-size: 26pt; color: #1e3a5f; margin: 0 0 8px; }
+    .cover .subtitle { font-size: 13pt; color: #475569; margin-bottom: 28px; }
+    .cover .meta { font-size: 10pt; color: #64748b; line-height: 1.7; }
+    h2 {
+      color: #1e40af;
+      font-size: 16pt;
+      margin-top: 28px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #dbeafe;
+      page-break-after: avoid;
+    }
+    h3 { color: #334155; font-size: 12pt; margin-top: 18px; page-break-after: avoid; }
+    p { margin: 0 0 10px; }
+    ul, ol { margin: 0 0 12px; padding-left: 22px; }
+    li { margin-bottom: 4px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 18px;
+      font-size: 10pt;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 7px 9px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #eff6ff; color: #1e40af; font-weight: 600; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .diagram {
+      background: #fafbfc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 12px 0 18px;
+      page-break-inside: avoid;
+    }
+    .callout {
+      background: #eff6ff;
+      border-left: 4px solid #2563eb;
+      padding: 10px 14px;
+      margin: 12px 0;
+      border-radius: 0 6px 6px 0;
+      page-break-inside: avoid;
+    }
+    .callout.green { background: #ecfdf5; border-left-color: #059669; }
+    .callout.warn { background: #fffbeb; border-left-color: #d97706; }
+    code {
+      font-family: Consolas, monospace;
+      background: #f1f5f9;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 9.5pt;
+    }
+    .phase-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin: 14px 0;
+      page-break-inside: avoid;
+    }
+    .phase-card h4 {
+      margin: 0 0 6px;
+      color: #1e40af;
+      font-size: 12pt;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 8pt;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .badge.done { background: #d1fae5; color: #065f46; }
+    .badge.next { background: #dbeafe; color: #1e40af; }
+    .badge.future { background: #f1f5f9; color: #475569; }
+    .badge.optional { background: #fef3c7; color: #92400e; }
+    .duration { font-size: 9pt; color: #64748b; margin-bottom: 8px; }
+    .page-break { page-break-before: always; }
+    footer {
+      margin-top: 40px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 9pt;
+      color: #64748b;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Dental Booking Platform</h1>
+  <p class="subtitle">Development Phases Roadmap — Team Reference</p>
+  <p class="meta">
+    <strong>Product:</strong> Multi-tenant dental booking SaaS (AWS)<br />
+    <strong>Date:</strong> May 2026<br />
+    <strong>Audience:</strong> Engineering, product, stakeholders<br />
+    <strong>Estimated timeline:</strong> 10–14 weeks to full platform with billing<br />
+    <strong>Repository (planned):</strong> <code>dental-booking-platform</code>
+  </p>
+</div>
+
+<h2>1. Product model (agreed)</h2>
+<table>
+  <thead><tr><th>Topic</th><th>Decision</th></tr></thead>
+  <tbody>
+    <tr><td>Who registers</td><td><strong>Practice owners only</strong> — not patients</td></tr>
+    <tr><td>Users per practice</td><td><strong>One admin user</strong> at signup; bots handle patient-facing tasks</td></tr>
+    <tr><td>Multi-tenant</td><td>Each <strong>clinic = one tenant</strong>; many clinics on one platform</td></tr>
+    <tr><td>Voice (default)</td><td>Amazon Connect + Lex bots (booking, admin, up to 8 per tenant)</td></tr>
+    <tr><td>Web booking form</td><td><strong>Optional add-on</strong> — <code>features.webForm: false</code> at signup; enabled on request</td></tr>
+    <tr><td>PMS integration</td><td><strong>HTTP APIs</strong> via <code>PmsAdapter</code> — Oryx first; no copy of Oryx internal DB schema</td></tr>
+    <tr><td>GoHighLevel</td><td><strong>Out of scope</strong> — not in AWS product roadmap</td></tr>
+    <tr><td>Cloud</td><td><strong>AWS only</strong> — ECS, Connect, Lex, RDS, S3, Secrets Manager, Bedrock (optional)</td></tr>
+  </tbody>
+</table>
+
+<div class="callout warn">
+  <strong>Oryx PMS schema reference</strong> (e.g. industry model with patients/appointments tables) is useful for understanding dental data — <em>not</em> required to run our platform. We store <strong>tenant config</strong> only; booking uses Oryx MyChart APIs.
+</div>
+
+<h2>2. Phase overview</h2>
+<table>
+  <thead>
+    <tr><th>Phase</th><th>Duration</th><th>Status</th><th>One-line outcome</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>0</strong> Foundation</td><td>2–3 weeks</td><td><span class="badge done">Implemented</span></td><td>Postgres, tenants, Oryx adapter, internal APIs</td></tr>
+    <tr><td><strong>1</strong> Web form</td><td>~2 weeks</td><td><span class="badge next">Next</span></td><td><code>/book/[slug]</code>, branding, webForm gate</td></tr>
+    <tr><td><strong>2</strong> Voice multi-tenant</td><td>2–3 weeks</td><td><span class="badge future">Planned</span></td><td>DID → tenant+bot; Lex uses platform config</td></tr>
+    <tr><td><strong>2b</strong> Bedrock ASR</td><td>1–2 weeks</td><td><span class="badge optional">Optional</span></td><td>Name/email correction via LLM</td></tr>
+    <tr><td><strong>3</strong> Admin portal</td><td>~2 weeks</td><td><span class="badge future">Planned</span></td><td>Operator tools: tenants, bots, phones, assets</td></tr>
+    <tr><td><strong>3b</strong> Practice signup</td><td>2–3 weeks</td><td><span class="badge future">Planned</span></td><td>Self-service registration + admin login</td></tr>
+    <tr><td><strong>4</strong> Stripe billing</td><td>1–2 weeks</td><td><span class="badge future">Planned</span></td><td>Subscriptions, feature sync, suspend</td></tr>
+    <tr><td><strong>5</strong> More PMS</td><td>Ongoing</td><td><span class="badge future">Planned</span></td><td>Open Dental, Dentrix, custom API, RPA</td></tr>
+  </tbody>
+</table>
+
+<div class="diagram"><pre class="mermaid">
+gantt
+  title Dental Booking Platform Roadmap
+  dateFormat YYYY-MM-DD
+  axisFormat %b %d
+  section Foundation
+  Phase 0 Postgres and adapters     :done, p0, 2026-05-01, 21d
+  section Patient channels
+  Phase 1 Multi-tenant web form     :p1, after p0, 14d
+  Phase 2 Multi-tenant voice        :p2, after p1, 18d
+  Phase 2b Bedrock ASR optional     :p2b, after p2, 10d
+  section Platform ops
+  Phase 3 Admin portal              :p3, after p2, 14d
+  Phase 3b Practice owner signup    :p3b, after p3, 14d
+  Phase 4 Stripe billing            :p4, after p3b, 10d
+  section Integrations
+  Phase 5 Additional PMS adapters   :p5, after p4, 21d
+</pre></div>
+
+<h2 class="page-break">3. Phase details</h2>
+
+<div class="phase-card">
+  <h4>Phase 0 — Foundation <span class="badge done">Implemented</span></h4>
+  <div class="duration">2–3 weeks · Prerequisite for all phases</div>
+  <p><strong>Goal:</strong> Multi-tenant data model and shared booking engine; Smile Squad as tenant #1.</p>
+  <p><strong>Deliverables:</strong></p>
+  <ul>
+    <li>Postgres + Prisma (local Docker; RDS via Terraform in follow-up PR)</li>
+    <li>Tables: <code>tenants</code>, <code>tenant_pms_config</code>, <code>tenant_bots</code>, <code>tenant_phone_numbers</code>, <code>subscriptions</code> (stub)</li>
+    <li><code>TenantService</code>, <code>PmsAdapter</code> + <code>OryxAdapter</code>, per-tenant operatory rules JSON</li>
+    <li>APIs: <code>GET /api/internal/resolve-phone</code>, <code>/api/t/[slug]/public-config|availability|book</code></li>
+    <li>Legacy routes preserved: <code>/api/availability</code>, <code>/api/web/book</code>, <code>POST /api/book</code> (secured with <code>CONNECT_WEBHOOK_SECRET</code>)</li>
+    <li>Seed tenant <code>smilesquad</code> (Oryx realm <code>smilesquadpd</code>)</li>
+    <li>Lex handler unchanged except Phase 2 TODO — still calls platform HTTP APIs</li>
+  </ul>
+  <p><strong>Not in Phase 0:</strong> Slug web UI, Lex tenant lookup, Stripe, self-service signup, admin portal, Bedrock.</p>
+</div>
+
+<div class="phase-card">
+  <h4>Phase 1 — Multi-tenant web booking form <span class="badge next">Next</span></h4>
+  <div class="duration">~2 weeks</div>
+  <p><strong>Goal:</strong> Public web booking per clinic slug; web form only when add-on enabled.</p>
+  <p><strong>Deliverables:</strong></p>
+  <ul>
+    <li><code>/book/[slug]</code> — dynamic branding from <code>tenants.branding</code></li>
+    <li>Redirect <code>/book</code> → <code>/book/smilesquad</code> (backward compat)</li>
+    <li>Wire UI to <code>/api/t/[slug]/availability</code> and <code>/api/t/[slug]/book</code></li>
+    <li>Feature gate: <strong>403</strong> if <code>features.webForm</code> is false</li>
+    <li>Per-tenant access code (<code>web_form_access_code</code>)</li>
+    <li>Default new tenants: <code>webForm: false</code> until ops/Stripe enables add-on</li>
+  </ul>
+  <p><strong>Who uses it:</strong> Patients (no login) book into tenant’s Oryx realm via web.</p>
+</div>
+
+<div class="phase-card">
+  <h4>Phase 2 — Multi-tenant voice bots <span class="badge future">Planned</span></h4>
+  <div class="duration">2–3 weeks</div>
+  <p><strong>Goal:</strong> One platform serves many clinics on voice; DID selects tenant + bot.</p>
+  <p><strong>Deliverables:</strong></p>
+  <ul>
+    <li>Lex Lambda calls <code>resolve-phone</code> at call start (DID → tenant, bot, operatory rules, prompts)</li>
+    <li>Replace hardcoded “Smile Squad” copy with tenant/bot <code>prompts_config</code></li>
+    <li>Remove duplicated operatory logic from Lambda — use platform rules</li>
+    <li>Support up to <strong>8 bots per tenant</strong> (booking, admin, FAQ, etc.)</li>
+    <li>Connect: map each DID to <code>tenant_phone_numbers</code></li>
+    <li><code>POST /api/book</code> with <code>X-Tenant-Slug</code> where needed</li>
+  </ul>
+  <p><strong>Who uses it:</strong> Patients call practice number; bots book via same Oryx APIs as web.</p>
+</div>
+
+<div class="phase-card">
+  <h4>Phase 2b — Bedrock ASR correction <span class="badge optional">Optional</span></h4>
+  <div class="duration">1–2 weeks (after Phase 2)</div>
+  <p><strong>Goal:</strong> Improve voice capture of names, email, and correction turns.</p>
+  <ul>
+    <li><code>POST /api/internal/normalize-slot</code> (platform secret)</li>
+    <li>Amazon Bedrock for structured extraction; mandatory read-back before book</li>
+    <li>Per-tenant feature flag; heavier use on admin/FAQ bot</li>
+    <li>Booking APIs remain deterministic (no LLM in final book call)</li>
+  </ul>
+</div>
+
+<div class="phase-card">
+  <h4>Phase 3 — Admin portal (operator) <span class="badge future">Planned</span></h4>
+  <div class="duration">~2 weeks</div>
+  <p><strong>Goal:</strong> Internal/ops team manages tenants without SQL.</p>
+  <ul>
+    <li><code>/admin</code> — tenant CRUD, PMS config, operatory rules editor</li>
+    <li>Bot registry (create/disable, Lex IDs, Lambda ARNs, prompts JSON)</li>
+    <li>Phone → bot mapping</li>
+    <li>Enable/disable <code>features.voice</code> and <code>features.webForm</code> (web form add-on)</li>
+    <li>S3 upload for logos / hero images</li>
+    <li>Booking health dashboard (success/fail per tenant)</li>
+  </ul>
+  <p><strong>Onboarding v1:</strong> Operator creates tenant (manual) — no public signup yet.</p>
+</div>
+
+<div class="phase-card">
+  <h4>Phase 3b — Practice owner self-service <span class="badge future">Planned</span></h4>
+  <div class="duration">2–3 weeks (after Phase 3 or with Phase 4)</div>
+  <p><strong>Goal:</strong> Practice owner registers, picks PMS (Oryx first), gets one admin login.</p>
+  <ul>
+    <li>New table: <code>platform_users</code> (email, password, role, <code>tenant_id</code>)</li>
+    <li>Registration flow: practice info → select PMS type → provision tenant</li>
+    <li>Default: <code>voice: true</code>, <code>webForm: false</code></li>
+    <li>“Request web form” workflow → ops approves → flip feature + access code</li>
+    <li>Practice admin dashboard (limited): view status, request add-ons, basic config</li>
+  </ul>
+  <p><strong>Not included:</strong> Patient accounts, staff RBAC beyond one admin (later).</p>
+</div>
+
+<div class="phase-card">
+  <h4>Phase 4 — Stripe subscriptions <span class="badge future">Planned</span></h4>
+  <div class="duration">1–2 weeks</div>
+  <ul>
+    <li>Stripe products: voice plans, web form add-on</li>
+    <li><code>POST /api/webhooks/stripe</code> — update <code>subscriptions</code>, sync <code>tenants.features</code></li>
+    <li>Suspend tenant on <code>past_due</code> / <code>canceled</code> (403 on book + voice routing)</li>
+    <li>Optional: self-serve checkout linked to Phase 3b signup</li>
+  </ul>
+</div>
+
+<div class="phase-card">
+  <h4>Phase 5 — Additional PMS adapters <span class="badge future">Ongoing</span></h4>
+  <div class="duration">Ongoing after Phase 4</div>
+  <ul>
+    <li><code>OpenDentalAdapter</code>, <code>DentrixAdapter</code>, <code>CustomApiAdapter</code></li>
+    <li>Same <code>PmsAdapter</code> interface — UI and Lex unchanged</li>
+    <li>RPA/SQS workers for PMS without public APIs (future; not FastAPI rewrite in current plan)</li>
+  </ul>
+</div>
+
+<h2 class="page-break">4. What we store vs what Oryx stores</h2>
+<table>
+  <thead><tr><th>Our Postgres (platform)</th><th>Oryx / PMS (via API)</th></tr></thead>
+  <tbody>
+    <tr><td>Tenant slug, branding, features, bots, DIDs</td><td>Patients, charts, appointments</td></tr>
+    <tr><td><code>realm</code>, operatory rules, adapter config</td><td>Providers, operatories, schedule slots</td></tr>
+    <tr><td>Stripe subscription status</td><td>Clinical, billing, insurance (not mirrored)</td></tr>
+    <tr><td>Platform admin users (Phase 3b)</td><td>Practice staff in PMS (<code>staff_users</code> in PMS model only)</td></tr>
+  </tbody>
+</table>
+
+<h2>5. Channels end-state</h2>
+<table>
+  <thead><tr><th>Channel</th><th>Entry</th><th>Phase</th></tr></thead>
+  <tbody>
+    <tr><td>Web booking</td><td><code>/book/{slug}</code></td><td>Phase 1 (APIs ready in Phase 0)</td></tr>
+    <tr><td>Voice booking</td><td>Connect DID → Lex → <code>/api/book</code></td><td>Phase 2</td></tr>
+    <tr><td>Practice admin</td><td><code>/admin</code> or signup portal</td><td>Phase 3 / 3b</td></tr>
+    <tr><td>Internal routing</td><td><code>/api/internal/resolve-phone</code></td><td>Phase 0 ✓</td></tr>
+  </tbody>
+</table>
+
+<h2>6. Infrastructure (by phase)</h2>
+<table>
+  <thead><tr><th>Component</th><th>Phase</th></tr></thead>
+  <tbody>
+    <tr><td>Docker Postgres (local)</td><td>0 ✓</td></tr>
+    <tr><td>RDS Postgres + Terraform</td><td>Follow-up PR after 0</td></tr>
+    <tr><td>ECS Fargate + ALB (existing)</td><td>Ongoing</td></tr>
+    <tr><td>S3 tenant assets</td><td>3</td></tr>
+    <tr><td>ACM + Route53 TLS</td><td>3+</td></tr>
+    <tr><td>Bedrock</td><td>2b (optional)</td></tr>
+  </tbody>
+</table>
+
+<h2>7. Success criteria (release-ready platform)</h2>
+<ul>
+  <li>Second clinic onboarded with <strong>DB config only</strong> (no app redeploy)</li>
+  <li><code>/book/{slug}</code> shows correct branding; books correct Oryx realm</li>
+  <li>Call to Clinic B’s DID uses B’s bot + PMS config</li>
+  <li>Voice-only tenant gets <strong>403</strong> on web form</li>
+  <li>Web form add-on enables <code>webForm</code> + access code without redeploy</li>
+  <li>Practice owner can register (Phase 3b) and manage one admin account</li>
+  <li>Stripe cancellation suspends tenant within one webhook cycle (Phase 4)</li>
+  <li>Second PMS adapter plugs in without UI/Lex flow changes (Phase 5)</li>
+</ul>
+
+<h2>8. Explicitly out of scope</h2>
+<ul>
+  <li>GoHighLevel integration and <code>tenant_ghl_locations</code></li>
+  <li>Patient registration on our platform</li>
+  <li>Replicating Oryx’s 22-table PMS database in our Postgres</li>
+  <li>FastAPI rewrite (stay on Next.js full-stack)</li>
+  <li>DynamoDB, EventBridge, SQS RPA workers (until Phase 5+ path)</li>
+</ul>
+
+<div class="callout green">
+  <strong>Phase 0 code location:</strong> <code>oryx-agent/</code> today; planned clean repo <code>dental-booking-platform</code> (no GHL) for team delivery.
+</div>
+
+<footer>
+  Dental Booking Platform — Development Phases Roadmap · May 2026 · Confidential<br />
+  Companion docs: <code>multi-tenant-architecture.html</code>, <code>phase-0-dev.md</code>
+</footer>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: "neutral",
+    securityLevel: "loose",
+    gantt: { useMaxWidth: true }
+  });
+</script>
+</body>
+</html>

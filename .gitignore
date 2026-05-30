@@ -1,0 +1,41 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+.tmp-*.html
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# env (never commit secrets)
+.env*
+!.env.example
+
+.vercel
+
+# typescript
+*.tsbuildinfo
+
+# terraform
+infra/.terraform/
+*.tfstate
+*.tfstate.*
+
+# cursor / local tooling
+.cursor/
+
+# docs tooling (regenerate PDFs locally)
+docs/node_modules/

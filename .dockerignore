@@ -1,0 +1,14 @@
+node_modules
+.next
+npm-debug.log
+yarn-error.log
+.env*
+.git
+.DS_Store
+README.md
+docker-compose.yml
+whisper-server
+infra/.terraform
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+**/.terraform

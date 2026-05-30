@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dental Booking Platform — Multi-Tenant Architecture</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    @page { size: A4; margin: 18mm 14mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: #1a1a2e;
+      line-height: 1.55;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px 28px 48px;
+      font-size: 11pt;
+    }
+    .cover {
+      text-align: center;
+      padding: 72px 20px 56px;
+      page-break-after: always;
+      border-bottom: 4px solid #2563eb;
+    }
+    .cover h1 { font-size: 28pt; color: #1e3a5f; margin: 0 0 8px; }
+    .cover .subtitle { font-size: 14pt; color: #475569; margin-bottom: 28px; }
+    .cover .meta { font-size: 10pt; color: #64748b; line-height: 1.7; }
+    h2 {
+      color: #1e40af;
+      font-size: 16pt;
+      margin-top: 32px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #dbeafe;
+      page-break-after: avoid;
+    }
+    h3 { color: #334155; font-size: 12pt; margin-top: 20px; page-break-after: avoid; }
+    p { margin: 0 0 12px; }
+    ul, ol { margin: 0 0 14px; padding-left: 22px; }
+    li { margin-bottom: 4px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 20px;
+      font-size: 10pt;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #eff6ff; color: #1e40af; font-weight: 600; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .diagram {
+      background: #fafbfc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px;
+      margin: 14px 0 22px;
+      overflow-x: auto;
+      page-break-inside: avoid;
+    }
+    .callout {
+      background: #eff6ff;
+      border-left: 4px solid #2563eb;
+      padding: 12px 16px;
+      margin: 14px 0;
+      border-radius: 0 6px 6px 0;
+      page-break-inside: avoid;
+    }
+    .callout.warn {
+      background: #fffbeb;
+      border-left-color: #d97706;
+    }
+    code {
+      font-family: Consolas, monospace;
+      background: #f1f5f9;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 9.5pt;
+    }
+    pre.code {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 14px 16px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 9pt;
+      page-break-inside: avoid;
+    }
+    .phase-card {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin: 10px 0;
+      page-break-inside: avoid;
+    }
+    .phase-card h4 { margin: 0 0 6px; color: #1e40af; font-size: 11pt; }
+    .phase-card .duration { color: #64748b; font-size: 9.5pt; margin-bottom: 6px; }
+    .toc { page-break-after: always; }
+    .toc ol { line-height: 1.8; }
+    footer {
+      margin-top: 40px;
+      padding-top: 14px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 9pt;
+      color: #64748b;
+      text-align: center;
+    }
+    .page-break { page-break-before: always; }
+  </style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Dental Booking Platform</h1>
+  <div class="subtitle">Multi-Tenant Architecture &amp; Development Plan</div>
+  <p class="meta">
+    Document type: Technical stakeholder architecture<br/>
+    Date: May 2026 · Status: Planning<br/>
+    Audience: Technical leads, architects, engineering stakeholders<br/>
+    Confidential
+  </p>
+</div>
+
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <ol>
+    <li>Executive Summary</li>
+    <li>Current State vs Target State</li>
+    <li>System Architecture Overview</li>
+    <li>Tenant Resolution &amp; Multi-Tenancy</li>
+    <li>Multi-Bot Model per Tenant</li>
+    <li>LLM &amp; Speech Understanding (ASR correction)</li>
+    <li>PMS Adapter Layer</li>
+    <li>Channel Flows (Web, Voice)</li>
+    <li>Data Model</li>
+    <li>API Surface</li>
+    <li>Subscription &amp; Feature Gating</li>
+    <li>AWS Infrastructure</li>
+    <li>Development Phases &amp; Timeline</li>
+    <li>Risks &amp; Success Criteria</li>
+  </ol>
+</div>
+
+<h2>1. Executive Summary</h2>
+<p>
+  The <strong>Dental Booking Platform</strong> evolves the existing single-practice <em>oryx-agent</em> application
+  (currently deployed for Smile Squad Pediatric Dentistry) into a <strong>multi-tenant SaaS product</strong>
+  sold on a <strong>monthly subscription</strong> basis.
+</p>
+<div class="callout">
+  <strong>Core value proposition:</strong> Dental clinics get one or more <strong>Amazon Connect + Lex voice bots</strong>
+  (e.g. appointment booking, administrative tasks) that integrate with their Practice Management System (PMS).
+  An optional <strong>Web Booking Form</strong> can be enabled as a separate subscription feature.
+  <strong>AWS only</strong> for voice and platform services in the current scope (no third-party CRM/voice middleware).
+</div>
+<table>
+  <thead><tr><th>Decision</th><th>Choice</th></tr></thead>
+  <tbody>
+    <tr><td>Cloud scope</td><td><strong>Amazon AWS only</strong> — Connect, Lex V2, ECS, RDS, S3, Secrets Manager, Stripe billing</td></tr>
+    <tr><td>Deployment model</td><td>Single shared ECS deployment; tenants isolated at app + DB layer</td></tr>
+    <tr><td>PMS strategy</td><td><strong>PMS-agnostic platform</strong> via adapter layer; target broad dental PMS coverage. <strong>Oryx is the first production client</strong>, not the long-term architectural center</td></tr>
+    <tr><td>Voice bots per tenant</td><td>Up to <strong>8 Lex bots per tenant</strong> (e.g. booking on call, admin, reminders); each bot has its own intents, prompts, and optional DID</td></tr>
+    <tr><td>Web routing</td><td>Path slug <code>/book/{slug}</code> (e.g. <code>/book/smilesquad</code>) in v1</td></tr>
+    <tr><td>Voice routing</td><td>Amazon Connect + Lex; called DID maps to <strong>tenant + bot</strong></td></tr>
+    <tr><td>Onboarding v1</td><td>Operator-configured tenants via admin portal</td></tr>
+    <tr><td>Billing</td><td>Stripe monthly subscriptions in Phase 4</td></tr>
+    <tr><td>First client</td><td>Smile Squad on Oryx migrates as tenant #1 (<code>slug: smilesquad</code>) with booking bot</td></tr>
+    <tr><td>LLM (optional)</td><td><strong>Amazon Bedrock</strong> for speech-to-text correction (names, email, corrections) — not required for multi-tenant v1; booking APIs stay deterministic</td></tr>
+  </tbody>
+</table>
+
+<h2>2. Current State vs Target State</h2>
+<h3>2.1 Today — Single Tenant (Smile Squad)</h3>
+<div class="diagram"><pre class="mermaid">
+flowchart LR
+  subgraph channels_today [Patient Channels]
+    WebToday["Web /book"]
+    VoiceToday["Connect + Lex single bot"]
+  end
+  subgraph app_today [oryx-agent ECS]
+    HardUI["Hardcoded Smile Squad UI"]
+    HardAPI["API realm=smilesquadpd"]
+    HardLex["Lex: Smile Squad copy"]
+    GlobalEnv["Global SMILE_SQUAD env vars"]
+  end
+  OryxToday[(Oryx MyChart first client)]
+  WebToday --> HardUI --> HardAPI
+  VoiceToday --> HardLex --> HardAPI
+  HardAPI --> GlobalEnv
+  HardAPI --> OryxToday
+</pre></div>
+<p><strong>Current limitations:</strong></p>
+<ul>
+  <li>Practice branding, address, phone, and doctor content hardcoded in React components</li>
+  <li>Oryx realm <code>smilesquadpd</code> hardcoded in all API routes</li>
+  <li>Operatory routing rules in global env vars (<code>SMILE_SQUAD_*</code>)</li>
+  <li>Lex Lambda has ~15 hardcoded Smile Squad voice prompts; duplicates operatory logic</li>
+  <li>No tenant registry, database, billing, or admin onboarding</li>
+</ul>
+
+<h3>2.2 Target — Multi-Tenant Platform</h3>
+<div class="diagram"><pre class="mermaid">
+flowchart TB
+  subgraph channels [Patient Channels]
+    Web["Web /book/slug"]
+    Voice["Amazon Connect + Lex bots"]
+  end
+  subgraph aws_edge [AWS Edge]
+    ALB[Application Load Balancer]
+  end
+  subgraph platform [Dental Booking Platform ECS]
+    Resolver[TenantBotResolver]
+    TenantSvc[TenantService]
+    BotSvc[BotService up to 8 per tenant]
+    PmsFactory[PmsAdapterFactory]
+    OryxAd[OryxAdapter first client]
+    FutureAd["OpenDental / Dentrix / CustomApi"]
+    AdminUI["Admin Portal /admin"]
+    BookUI["Booking Wizard /book/slug"]
+  end
+  subgraph data [Data and Billing]
+    PG[(Postgres RDS)]
+    S3[(S3 Tenant Assets)]
+    Stripe[Stripe Subscriptions]
+    Secrets[Secrets Manager]
+  end
+  subgraph pms [Practice Management Systems]
+    OryxPMS[(Oryx first client)]
+    FuturePMS["Open Dental Dentrix Custom API"]
+  end
+  Web --> ALB
+  Voice --> ALB
+  ALB --> Resolver
+  Resolver --> BotSvc
+  Resolver --> TenantSvc
+  TenantSvc --> PG
+  TenantSvc --> PmsFactory
+  PmsFactory --> OryxAd
+  PmsFactory -.-> FutureAd
+  OryxAd --> OryxPMS
+  FutureAd -.-> FuturePMS
+  AdminUI --> TenantSvc
+  BookUI --> TenantSvc
+  Stripe --> TenantSvc
+  TenantSvc --> S3
+  platform --> Secrets
+</pre></div>
+
+<h2>3. System Architecture Overview</h2>
+<p>The platform is a <strong>Next.js application</strong> on <strong>AWS ECS Fargate</strong> behind an ALB. All booking channels converge on <strong>TenantResolver</strong>, which loads clinic config from <strong>Postgres</strong> and delegates to <strong>PmsAdapter</strong>.</p>
+
+<h3>3.1 Logical Component Layers</h3>
+<div class="diagram"><pre class="mermaid">
+flowchart TB
+  subgraph presentation [Presentation Layer]
+    BookPages["/book/slug pages"]
+    AdminPages["/admin pages"]
+    PublicAPI["/api/t/slug/* public APIs"]
+  end
+  subgraph application [Application Layer]
+    TenantResolver
+    TenantService
+    FeatureGate[FeatureGate]
+    BookingService[BookingService]
+    PmsAdapterFactory
+  end
+  subgraph integration [Integration Layer]
+    PmsAdapters[PmsAdapter implementations]
+    LexBridge[Lex Fulfillment Bridge]
+    ConnectBridge[Connect Contact Flows]
+    StripeWebhook[Stripe Webhook Handler]
+  end
+  subgraph persistence [Persistence Layer]
+    PostgresDB[(Postgres)]
+    S3Assets[(S3)]
+    StripeAPI[Stripe API]
+  end
+  BookPages --> TenantResolver
+  PublicAPI --> TenantResolver
+  AdminPages --> TenantService
+  TenantResolver --> TenantService
+  TenantService --> FeatureGate
+  FeatureGate --> BookingService
+  BookingService --> PmsAdapterFactory
+  PmsAdapterFactory --> PmsAdapters
+  LexBridge --> TenantResolver
+  ConnectBridge --> TenantResolver
+  StripeWebhook --> TenantService
+  TenantService --> PostgresDB
+  TenantService --> S3Assets
+  TenantService --> StripeAPI
+</pre></div>
+
+<h3>3.2 AWS Deployment Topology</h3>
+<div class="diagram"><pre class="mermaid">
+flowchart TB
+  subgraph internet [Internet]
+    Patients[Patients]
+    Clinics[Clinic Staff Admin]
+    StripeExt[Stripe]
+    OryxExt[Oryx MyChart API]
+  end
+  subgraph aws [AWS Account]
+    Route53[Route53 DNS]
+    ACM[ACM TLS Cert]
+    ALB2[ALB HTTP/HTTPS]
+    ECS[ECS Fargate Service]
+    RDS[(RDS Postgres Private)]
+    S3b[(S3 Bucket)]
+    SM[Secrets Manager]
+    CW[CloudWatch Logs]
+    Connect[Amazon Connect]
+    LexBots[Lex V2 Bots per tenant]
+    Lambda[Lex Fulfillment Lambdas]
+    ECR[ECR Container Registry]
+  end
+  Patients --> Route53 --> ACM --> ALB2 --> ECS
+  Clinics --> Route53
+  ECS --> RDS
+  ECS --> S3b
+  ECS --> SM
+  ECS --> CW
+  ECS --> OryxExt
+  ECS --> StripeExt
+  Connect --> LexBots --> Lambda
+  Lambda --> ALB2
+  ECR --> ECS
+</pre></div>
+
+<h2>4. Tenant Resolution &amp; Multi-Tenancy</h2>
+<div class="diagram"><pre class="mermaid">
+flowchart LR
+  subgraph inputs [Resolution Inputs]
+    Slug["URL slug /book/smilesquad"]
+    DID["Called phone E164"]
+    BotId["Lex bot id in session"]
+  end
+  subgraph resolver [TenantBotResolver]
+    Lookup[Lookup tenant and bot]
+    Validate[Validate status and features]
+    Context[Build TenantBotContext]
+  end
+  subgraph output [TenantBotContext]
+    Config[Branding and PMS config]
+    Bot[Bot type prompts intents]
+    Rules[Operatory rules if booking bot]
+    Adapter[PmsAdapter instance]
+  end
+  Slug --> Lookup
+  DID --> Lookup
+  BotId --> Lookup
+  Lookup --> Validate --> Context
+  Context --> Config
+  Context --> Bot
+  Context --> Rules
+  Context --> Adapter
+</pre></div>
+<table>
+  <thead><tr><th>Channel</th><th>Resolution key</th><th>Behavior</th></tr></thead>
+  <tbody>
+    <tr><td>Web booking UI</td><td><code>/book/[slug]</code></td><td>404 if inactive or webForm disabled</td></tr>
+    <tr><td>Web booking API</td><td><code>/api/t/[slug]/...</code></td><td>Per-tenant access code, rate limit</td></tr>
+    <tr><td>Voice (Lex)</td><td>Called DID from Connect</td><td><code>GET /api/internal/resolve-phone</code> → tenant + bot config</td></tr>
+    <tr><td>Lex fulfillment</td><td><code>botId</code> + tenant slug in session</td><td>Routes to correct Lambda handler and prompt set</td></tr>
+    <tr><td>Internal PMS book</td><td><code>X-Tenant-Id</code> + bot capability</td><td>Authenticated with platform secret; booking bots only call PMS book APIs</td></tr>
+  </tbody>
+</table>
+
+<h2>5. Multi-Bot Model per Tenant</h2>
+<p>
+  A single dental client (tenant) may operate <strong>multiple Amazon Lex V2 bots</strong> — up to <strong>8 per tenant</strong> —
+  each dedicated to a different workflow. Examples:
+</p>
+<ul>
+  <li><strong>Booking bot</strong> — inbound calls to schedule appointments (current PatientBooking flow)</li>
+  <li><strong>Administrative bot</strong> — office hours, directions, insurance FAQs, transfer to staff</li>
+  <li><strong>Future bots</strong> — reminders, cancellations, new-patient intake, Spanish line, etc.</li>
+</ul>
+<div class="diagram"><pre class="mermaid">
+flowchart TB
+  subgraph tenant [Tenant smilesquad]
+    T[Tenant record]
+    B1[Bot 1 Booking Lex]
+    B2[Bot 2 Admin Lex]
+    B3[Bot 3 ... up to 8]
+    DID1[DID main line]
+    DID2[DID admin line]
+  end
+  subgraph aws_voice [AWS Voice]
+    Connect[Amazon Connect]
+    L1[Lex Bot Alias booking]
+    L2[Lex Bot Alias admin]
+    Lam1[Lambda fulfillment booking]
+    Lam2[Lambda fulfillment admin]
+  end
+  T --> B1
+  T --> B2
+  T --> B3
+  DID1 --> Connect --> L1 --> Lam1
+  DID2 --> Connect --> L2 --> Lam2
+  B1 --- L1
+  B2 --- L2
+</pre></div>
+<table>
+  <thead><tr><th>Concept</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>tenant_bots</code></td><td>Bot registry: <code>bot_type</code>, Lex bot ID/alias, Lambda ARN, Connect flow ARN, enabled capabilities</td></tr>
+    <tr><td><code>tenant_phone_numbers</code></td><td>Maps E164 DID → <code>tenant_id</code> + <code>bot_id</code> (not tenant alone)</td></tr>
+    <tr><td>Prompts &amp; intents</td><td>Per-bot configuration; booking bot loads operatory rules; admin bot may skip PMS book APIs</td></tr>
+    <tr><td>Subscription</td><td>Plans may cap enabled bot count (e.g. 1, 3, or 8 bots)</td></tr>
+  </tbody>
+</table>
+
+<h2>6. LLM &amp; Speech Understanding (ASR Correction)</h2>
+
+<h3>6.1 Today vs target</h3>
+<p>
+  Production voice today uses <strong>Amazon Lex V2 + fulfillment Lambda</strong> — not a general-purpose LLM.
+  Lex provides intents, slots, and speech recognition; the Lambda already prefers <code>inputTranscript</code> over Lex slot values
+  because <strong>slots are often wrong for name, email, and phone</strong>. Heuristics (spelled-letter names, phone word parsing) help but do not fix all ASR errors or caller corrections.
+</p>
+<div class="callout">
+  <strong>Observed pain point:</strong> The bot sometimes captures the <strong>wrong name</strong> or <strong>misheard words</strong>
+  (uncommon names, accents, noise). Target: add an optional <strong>Amazon Bedrock</strong> layer to normalize speech into structured fields and handle &ldquo;no, I said …&rdquo; correction turns — while keeping <strong>read-back confirmation</strong> and <strong>deterministic PMS booking APIs</strong>.
+</div>
+
+<h3>6.2 Tiered intelligence model (AWS only)</h3>
+<div class="diagram"><pre class="mermaid">
+flowchart TB
+  subgraph tier1 [Tier 1 — Lex + rules no LLM cost]
+    LexASR[Lex / Connect ASR]
+    Rules[Lambda transcript rules]
+    Confirm[Read-back ConfirmIntent]
+  end
+  subgraph tier2 [Tier 2 — Bedrock Nova Micro]
+    Nova[Normalize slot from transcript]
+    Correct[Parse correction utterance]
+  end
+  subgraph tier3 [Tier 3 — Bedrock Claude Sonnet rare]
+    Sonnet[Complex multi-turn or frustrated caller]
+  end
+  subgraph never [Never LLM-only]
+    BookAPI[PmsAdapter book and availability APIs]
+  end
+  Caller[Caller speech] --> LexASR --> Rules
+  Rules -->|low confidence or mismatch| Nova
+  Rules -->|correction no / wrong| Correct
+  Nova --> Confirm
+  Correct --> Confirm
+  Confirm -->|yes| BookAPI
+  Rules -->|escalation| Sonnet
+  Sonnet --> Confirm
+</pre></div>
+<table>
+  <thead><tr><th>Tier</th><th>Technology</th><th>Use when</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Lex slots + Lambda rules</td><td>Happy path; phone DTMF; spelled-letter names</td></tr>
+    <tr><td>2</td><td>Bedrock Nova Micro</td><td>Name/email normalization from transcript; simple fallback when Lex does not understand</td></tr>
+    <tr><td>3</td><td>Bedrock Claude Sonnet</td><td>Target &lt;5% of calls — complex phrasing, many failed turns, admin FAQ bot</td></tr>
+  </tbody>
+</table>
+
+<h3>6.3 ASR correction flow (booking bot — name example)</h3>
+<div class="diagram"><pre class="mermaid">
+sequenceDiagram
+  participant Caller
+  participant Lex as Lex V2
+  participant Lambda as Lex Lambda
+  participant BR as Amazon Bedrock
+  participant API as Platform API
+
+  Caller->>Lex: Says full name
+  Lex->>Lambda: inputTranscript + often-wrong fullName slot
+  Lambda->>Lambda: Rule-based normalizeFullNameFromLex
+  alt Rules insufficient or slot disagrees with transcript
+    Lambda->>BR: Transcript + slot type + tenant context
+    BR-->>Lambda: JSON firstName lastName
+  end
+  Lambda->>Lex: I heard Sarah Johnson. Is that correct?
+  Caller->>Lex: No it is Gufran G U F R A N
+  Lambda->>BR: Correction utterance + prior value
+  BR-->>Lambda: Updated JSON name
+  Lambda->>Lex: I heard Gufran Lastname. Is that correct?
+  Caller->>Lex: Yes
+  Lambda->>API: Continue flow then POST book via PmsAdapter
+</pre></div>
+
+<h3>6.4 What the LLM does and does not do</h3>
+<table>
+  <thead><tr><th>LLM should</th><th>LLM should not</th></tr></thead>
+  <tbody>
+    <tr><td>Fix likely ASR errors for <strong>name</strong>, <strong>email</strong>, light date phrasing</td><td>Choose operatory, time slot, or PMS realm by itself</td></tr>
+    <tr><td>Understand correction intent (&ldquo;that&rsquo;s wrong&rdquo;, spelled letters)</td><td>Skip read-back confirmation before book</td></tr>
+    <tr><td>Power <strong>admin/FAQ bots</strong> from tenant knowledge</td><td>Send unnecessary PHI in prompts (minimize under AWS BAA)</td></tr>
+    <tr><td>Use per-tenant prompt + optional name vocabulary (doctors, locale)</td><td>Replace Lex entirely for structured booking</td></tr>
+  </tbody>
+</table>
+
+<h3>6.5 Non-LLM mitigations (use alongside Bedrock)</h3>
+<ul>
+  <li>Always <strong>read back</strong> critical fields and require explicit yes</li>
+  <li>Fallback: <strong>spell-by-letter</strong> for names when validation fails</li>
+  <li>Tune Connect/Lex speech capture (silence timeouts, VAD)</li>
+  <li><strong>Custom vocabulary</strong> for practice and provider names</li>
+  <li><strong>DTMF</strong> for phone entry where speech fails</li>
+</ul>
+
+<h3>6.6 Platform integration</h3>
+<ul>
+  <li><strong>Invoke from Lex Lambda</strong> or <code>POST /api/internal/normalize-slot</code> on ECS (tenant + bot + slot type + transcript)</li>
+  <li>Tenant flag: <code>features.llmSlotCorrection</code> (optional per plan)</li>
+  <li>Store <code>bedrock_model_tier</code> and prompt templates in <code>tenant_bots.prompts_config</code></li>
+  <li>HIPAA: Bedrock under AWS BAA; de-identified prompts; audit logs without full transcript retention where possible</li>
+</ul>
+
+<h2>7. PMS Adapter Layer</h2>
+<p>
+  The platform is built <strong>PMS-agnostic</strong>: scheduling and booking semantics are expressed through a stable
+  <code>PmsAdapter</code> interface. Implementations target the breadth of dental PMS ecosystems (Open Dental, Dentrix,
+  Eaglesoft, custom APIs, RPA where needed). <strong>Oryx is the first live client adapter</strong> (Smile Squad production),
+  proving the model — it is not a statement that the product is “Oryx-first” long term.
+</p>
+<pre class="code">interface PmsAdapter {
+  getPracticeInfo(): Promise&lt;PracticeInfo&gt;;
+  getProviders(): Promise&lt;Provider[]&gt;;
+  getAvailability(input: AvailabilityQuery): Promise&lt;Slot[]&gt;;
+  bookAppointment(input: BookInput): Promise&lt;BookResult&gt;;
+}</pre>
+<div class="diagram"><pre class="mermaid">
+flowchart LR
+  subgraph factory [PmsAdapterFactory]
+    Create["create(tenant.pmsConfig)"]
+  end
+  subgraph adapters [Adapters]
+    Oryx["OryxAdapter first production client"]
+    OD["OpenDentalAdapter Phase 5 stub"]
+    DX["DentrixAdapter Phase 5 stub"]
+    Custom["CustomApiAdapter Phase 5 stub"]
+  end
+  Create -->|"pms_type=oryx"| Oryx
+  Create -.->|"pms_type=open_dental"| OD
+  Create -.->|"pms_type=dentrix"| DX
+  Create -.->|"pms_type=custom_api"| Custom
+  Oryx --> OryxAPI[Oryx MyChart HTTP API]
+  OD -.-> RPA[Future RPA Worker]
+  DX -.-> RPA
+  Custom -.-> ExtAPI[External REST API]
+</pre></div>
+
+<h2>8. Channel Flows</h2>
+<h3>8.1 Web Booking Flow</h3>
+<div class="diagram"><pre class="mermaid">
+sequenceDiagram
+  participant Patient
+  participant BookUI as Booking Wizard
+  participant API as Platform API
+  participant TenantSvc as TenantService
+  participant PMS as PmsAdapter
+  participant PMSys as PMS e.g. Oryx
+  Patient->>BookUI: Visit /book/smilesquad
+  BookUI->>API: GET /api/t/smilesquad/public-config
+  API->>TenantSvc: Load tenant + branding
+  TenantSvc-->>BookUI: Name, address, logo, appt types
+  Patient->>BookUI: Select date and time
+  BookUI->>API: GET /api/t/smilesquad/availability
+  API->>PMS: getAvailability
+  PMS->>PMSys: Schedule API
+  PMSys-->>BookUI: Filtered slots
+  Patient->>BookUI: Submit patient details
+  BookUI->>API: POST /api/t/smilesquad/book
+  API->>PMS: bookAppointment
+  PMS->>PMSys: Book API
+  PMSys-->>BookUI: Confirmation
+</pre></div>
+
+<h3>8.2 Voice Agent Flow — Booking Bot</h3>
+<div class="diagram"><pre class="mermaid">
+sequenceDiagram
+  participant Caller
+  participant Connect as Amazon Connect
+  participant Lex as Lex V2 Bot
+  participant Lambda as Lex Lambda
+  participant BR as Amazon Bedrock
+  participant API as Platform API
+  participant PMS as PmsAdapter
+  Caller->>Connect: Dial clinic DID
+  Connect->>Lex: Route to booking bot alias
+  Lex->>Lambda: Invoke booking fulfillment
+  Lambda->>API: GET /api/internal/resolve-phone
+  API-->>Lambda: tenantSlug, botId, practiceName, operatoryRules
+  Lambda->>Lex: Session attributes + greeting
+  Note over Lambda,BR: Optional Bedrock on name email slots
+  Lambda->>API: GET /api/t/slug/availability
+  API->>PMS: getAvailability
+  Lambda->>API: POST /api/t/slug/book
+  API->>PMS: bookAppointment
+  Lambda->>Lex: Closing message with practice name
+</pre></div>
+
+<h3>8.3 Voice Agent Flow — Non-Booking Bot (e.g. Admin)</h3>
+<div class="diagram"><pre class="mermaid">
+sequenceDiagram
+  participant Caller
+  participant Connect as Amazon Connect
+  participant Lex as Lex Admin Bot
+  participant Lambda as Admin Lambda
+  participant API as Platform API
+  Caller->>Connect: Dial admin DID
+  Connect->>Lex: Admin contact flow
+  Lex->>Lambda: Invoke admin fulfillment
+  Lambda->>API: GET /api/internal/resolve-phone
+  API-->>Lambda: tenantSlug, botId, admin prompts, no PMS book
+  Lambda->>Lex: Answer FAQ or transfer to queue
+  Note over Lambda,API: Admin bot skips PMS book unless configured
+</pre></div>
+
+<h2 class="page-break">9. Data Model</h2>
+<div class="diagram"><pre class="mermaid">
+erDiagram
+  tenants ||--o| tenant_pms_config : has
+  tenants ||--o{ tenant_bots : has
+  tenants ||--o{ tenant_phone_numbers : has
+  tenants ||--o| subscriptions : has
+  tenant_bots ||--o{ tenant_phone_numbers : routes
+  tenants {
+    uuid id PK
+    string slug UK
+    string name
+    enum status
+    json features
+    json branding
+    int max_bots
+    string web_form_access_code
+    timestamp created_at
+  }
+  tenant_bots {
+    uuid id PK
+    uuid tenant_id FK
+    string bot_key UK
+    enum bot_type
+    string lex_bot_id
+    string lex_bot_alias
+    string lambda_arn
+    string connect_flow_arn
+    json prompts_config
+    json capabilities
+    boolean enabled
+  }
+  tenant_pms_config {
+    uuid tenant_id FK
+    enum pms_type
+    json config_encrypted
+    json operatory_rules
+  }
+  tenant_phone_numbers {
+    uuid id PK
+    uuid tenant_id FK
+    uuid bot_id FK
+    string e164 UK
+    string label
+  }
+  subscriptions {
+    uuid tenant_id FK
+    string stripe_customer_id
+    string stripe_subscription_id
+    string plan_id
+    enum status
+    timestamp current_period_end
+  }
+</pre></div>
+
+<h2>10. API Surface</h2>
+<table>
+  <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>/api/t/[slug]/public-config</code></td><td>GET</td><td>None</td><td>Branding, appt types, access-code flag</td></tr>
+    <tr><td><code>/api/t/[slug]/availability</code></td><td>GET</td><td>Per-tenant access code</td><td>Filtered schedule slots (booking)</td></tr>
+    <tr><td><code>/api/t/[slug]/book</code></td><td>POST</td><td>Access code + rate limit</td><td>Book into PMS via adapter</td></tr>
+    <tr><td><code>/api/internal/resolve-phone</code></td><td>GET</td><td>Platform secret</td><td>DID → tenant + bot + prompts/capabilities</td></tr>
+    <tr><td><code>/api/internal/normalize-slot</code></td><td>POST</td><td>Platform secret</td><td>Transcript → structured slot (Bedrock); name, email, correction</td></tr>
+    <tr><td><code>/api/webhooks/stripe</code></td><td>POST</td><td>Stripe signature</td><td>Subscription lifecycle</td></tr>
+  </tbody>
+</table>
+<p><em>Legacy GHL routes (<code>/api/ghl/*</code>) are out of scope for the AWS-only product roadmap and will not be extended for multi-tenant.</em></p>
+
+<h2>11. Subscription &amp; Feature Gating</h2>
+<table>
+  <thead><tr><th>Plan</th><th>Lex bots</th><th>Web Booking Form</th><th>Billing</th></tr></thead>
+  <tbody>
+    <tr><td>Voice — 1 bot</td><td>1 bot (e.g. booking)</td><td>No</td><td>Stripe monthly</td></tr>
+    <tr><td>Voice — multi-bot</td><td>Up to 8 bots</td><td>Optional add-on</td><td>Stripe monthly</td></tr>
+    <tr><td>Voice + Web Form</td><td>Per plan tier</td><td>Yes</td><td>Stripe monthly</td></tr>
+  </tbody>
+</table>
+<div class="diagram"><pre class="mermaid">
+flowchart TD
+  StripeEvent[Stripe webhook event]
+  WebhookHandler[Webhook handler]
+  UpdateSub[Update subscriptions table]
+  SyncFeatures[Sync tenants.features JSON]
+  CheckStatus{status active?}
+  Suspend[Suspend tenant services]
+  AllowVoice[Allow voice calls]
+  AllowWeb[Allow web form]
+  StripeEvent --> WebhookHandler --> UpdateSub --> SyncFeatures --> CheckStatus
+  CheckStatus -->|past_due or canceled| Suspend
+  CheckStatus -->|active| AllowVoice --> AllowWeb
+</pre></div>
+
+<h2>12. AWS Infrastructure</h2>
+<table>
+  <thead><tr><th>Component</th><th>Current</th><th>Target</th></tr></thead>
+  <tbody>
+    <tr><td>Compute</td><td>ECS Fargate single service</td><td>Same — app-level multi-tenancy</td></tr>
+    <tr><td>Database</td><td>None</td><td>RDS Postgres encrypted, private subnet</td></tr>
+    <tr><td>Secrets</td><td><code>APP_ENV_JSON</code></td><td>Add <code>DATABASE_URL</code></td></tr>
+    <tr><td>Storage</td><td>None</td><td>S3 for tenant logos and hero images</td></tr>
+    <tr><td>DNS / TLS</td><td>ALB HTTP only</td><td>ACM + Route53 wildcard cert</td></tr>
+    <tr><td>Voice</td><td>Connect + Lex + Lambda</td><td>Multiple Lex bots per tenant; DID → bot mapping in DB</td></tr>
+    <tr><td>LLM</td><td>None</td><td>Amazon Bedrock (Nova / Sonnet) optional for ASR correction and admin bots</td></tr>
+    <tr><td>Monitoring</td><td>CloudWatch logs</td><td>Per-tenant booking metrics (Phase 3+)</td></tr>
+  </tbody>
+</table>
+
+<h2>13. Development Phases &amp; Timeline</h2>
+<p><strong>Estimated total: 10–14 weeks</strong> to full multi-tenant platform with billing.</p>
+<div class="diagram"><pre class="mermaid">
+gantt
+  title Development Roadmap
+  dateFormat YYYY-MM-DD
+  axisFormat %b %d
+  section Phase0
+  Postgres and ORM           :p0a, 2026-06-01, 10d
+  PmsAdapter OryxAdapter     :p0b, after p0a, 8d
+  Seed Smile Squad tenant    :p0c, after p0b, 3d
+  section Phase1
+  Multi-tenant web form      :p1, after p0c, 14d
+  section Phase2
+  Multi-tenant voice bots    :p2, after p1, 18d
+  section Phase3
+  Admin portal               :p3, after p2, 14d
+  section Phase4
+  Stripe subscriptions       :p4, after p3, 10d
+  section Phase5
+  Future PMS adapter stubs   :p5, after p4, 21d
+</pre></div>
+
+<div class="phase-card"><h4>Phase 0 — Foundation (2–3 weeks)</h4><div class="duration">Prerequisite for all other phases</div><ul><li>RDS Postgres + ORM + migrations</li><li>Tenant schema, <code>tenant_bots</code>, TenantService, BotService</li><li>PmsAdapter interface + Oryx adapter (first client)</li><li>Seed Smile Squad with booking bot</li><li>Internal <code>resolve-phone</code> API</li></ul></div>
+<div class="phase-card"><h4>Phase 1 — Multi-Tenant Web Form (2 weeks)</h4><ul><li><code>/book/[slug]</code> with dynamic branding</li><li>Tenant-scoped availability, book, public-config APIs</li><li>Feature gate: 403 if webForm disabled</li></ul></div>
+<div class="phase-card"><h4>Phase 2 — Multi-Tenant Voice Bots (2–3 weeks)</h4><ul><li>DID → tenant + bot resolution</li><li>Booking bot: templated prompts; secure tenant-aware book API</li><li>Bot registry supports multiple Lex bots per tenant</li><li>Remove duplicated operatory logic from Lambda</li></ul></div>
+<div class="phase-card"><h4>Phase 2b — Bedrock ASR correction (1–2 weeks, optional)</h4><ul><li>Bedrock Nova: name/email normalization from <code>inputTranscript</code></li><li>Correction-turn handler when caller says name is wrong</li><li>Per-tenant feature flag; keep ConfirmIntent read-back</li><li>Admin bot: heavier Bedrock use for FAQs</li></ul></div>
+<div class="phase-card"><h4>Phase 3 — Admin Portal (2 weeks)</h4><ul><li>Tenant CRUD, bot configuration (up to 8), phone-to-bot mapping</li><li>S3 asset upload; booking health dashboard</li></ul></div>
+<div class="phase-card"><h4>Phase 4 — Stripe Subscriptions (1–2 weeks)</h4><ul><li>Products/prices, webhook handler, feature sync, tenant suspension</li></ul></div>
+<div class="phase-card"><h4>Phase 5 — PMS Extensibility (ongoing)</h4><ul><li>Open Dental, Dentrix, Custom API adapter stubs</li><li>RPA worker path for PMS without public APIs</li></ul></div>
+
+<h2 class="page-break">14. Risks &amp; Success Criteria</h2>
+<table>
+  <thead><tr><th>Risk</th><th>Mitigation</th></tr></thead>
+  <tbody>
+    <tr><td>Oryx cookie init latency</td><td>Cache OryxClient session per tenant+realm</td></tr>
+    <tr><td>Lex cold start + tenant/bot lookup</td><td>One <code>resolve-phone</code> call returns tenant + bot config; cache in session</td></tr>
+    <tr><td>Many Lex bots per tenant</td><td>Bot registry in DB; shared Lambda with bot routing or per-bot Lambdas</td></tr>
+    <tr><td>LLM hallucinated name</td><td>Structured JSON + validation + mandatory read-back before book</td></tr>
+    <tr><td>Bedrock latency every turn</td><td>Invoke only on mismatch, fallback, or correction — not every slot</td></tr>
+    <tr><td>Breaking Smile Squad production</td><td>Parallel routes, slug redirect, per-tenant flags</td></tr>
+    <tr><td>Operatory ID varies per realm</td><td>Per-tenant operatory_rules JSON</td></tr>
+    <tr><td>PHI in database</td><td>Config only in DB; booking payloads ephemeral; encrypt RDS</td></tr>
+    <tr><td>Single ECS blast radius</td><td>Health checks, auto-scaling, CloudWatch alarms</td></tr>
+  </tbody>
+</table>
+<h3>Success Criteria</h3>
+<ul>
+  <li>Second clinic onboarded via admin with only DB config (no redeploy)</li>
+  <li><code>/book/{slug}</code> shows correct branding and books into correct Oryx realm</li>
+  <li>Voice call to Clinic B's booking DID uses Clinic B booking bot prompts and PMS config</li>
+  <li>Clinic B can enable a second bot (e.g. admin) on a separate DID without redeploy</li>
+  <li>Voice-only tenant gets 403 on web form</li>
+  <li>PmsAdapterFactory registers a second PMS adapter without UI/Lex booking flow changes</li>
+  <li>With Bedrock enabled: uncommon names corrected after read-back at higher rate than rules-only baseline</li>
+  <li>Stripe cancellation suspends tenant within one webhook cycle</li>
+</ul>
+<div class="callout warn"><strong>Migration note:</strong> Smile Squad remains operational throughout Phases 0–1 via backward-compatible route wrappers and redirect from <code>/book</code> to <code>/book/smilesquad</code>.</div>
+
+<footer>Dental Booking Platform — Multi-Tenant Architecture &amp; Development Plan · May 2026 · Confidential</footer>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: "neutral",
+    securityLevel: "loose",
+    flowchart: { useMaxWidth: true, htmlLabels: true },
+    sequence: { useMaxWidth: true },
+    gantt: { useMaxWidth: true }
+  });
+</script>
+</body>
+</html>

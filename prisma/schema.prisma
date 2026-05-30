@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TenantStatus {
+  active
+  suspended
+  trial
+}
+
+enum PmsType {
+  oryx
+  open_dental
+  dentrix
+  custom_api
+}
+
+enum BotType {
+  booking
+  admin
+  faq
+  other
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  canceled
+  incomplete
+}
+
+model Tenant {
+  id                  String   @id @default(uuid()) @db.Uuid
+  slug                String   @unique
+  name                String
+  status              TenantStatus @default(active)
+  features            Json     @default("{\"voice\":true,\"webForm\":false}")
+  branding            Json     @default("{}")
+  maxBots             Int      @default(8) @map("max_bots")
+  webFormAccessCode   String?  @map("web_form_access_code")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  pmsConfig      TenantPmsConfig?
+  bots           TenantBot[]
+  phoneNumbers   TenantPhoneNumber[]
+  subscription   Subscription?
+
+  @@map("tenants")
+}
+
+model TenantPmsConfig {
+  tenantId        String   @id @map("tenant_id") @db.Uuid
+  pmsType         PmsType  @map("pms_type")
+  config          Json     @default("{}")
+  operatoryRules  Json     @default("{}") @map("operatory_rules")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_pms_config")
+}
+
+model TenantBot {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  botKey          String   @map("bot_key")
+  botType         BotType  @map("bot_type")
+  lexBotId        String?  @map("lex_bot_id")
+  lexBotAlias     String?  @map("lex_bot_alias")
+  lambdaArn       String?  @map("lambda_arn")
+  connectFlowArn  String?  @map("connect_flow_arn")
+  promptsConfig   Json     @default("{}") @map("prompts_config")
+  capabilities    Json     @default("{}")
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phoneNumbers TenantPhoneNumber[]
+
+  @@unique([tenantId, botKey])
+  @@map("tenant_bots")
+}
+
+model TenantPhoneNumber {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  botId     String   @map("bot_id") @db.Uuid
+  e164      String   @unique
+  label     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bot    TenantBot @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_phone_numbers")
+}
+
+model Subscription {
+  tenantId               String             @id @map("tenant_id") @db.Uuid
+  stripeCustomerId       String?            @map("stripe_customer_id")
+  stripeSubscriptionId   String?            @map("stripe_subscription_id")
+  planId                 String?            @map("plan_id")
+  status                 SubscriptionStatus @default(incomplete)
+  currentPeriodEnd       DateTime?          @map("current_period_end")
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime           @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
