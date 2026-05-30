@@ -281,6 +281,21 @@ export async function createPhone(tenantId: string, botId: string, e164: string,
   const bot = await prisma.tenantBot.findFirst({ where: { id: botId, tenantId } });
   if (!bot) throw new Error("Bot not found for tenant");
 
+  const existing = await prisma.tenantPhoneNumber.findUnique({
+    where: { e164: normalized },
+    include: { tenant: { select: { slug: true } } },
+  });
+  if (existing) {
+    if (existing.tenantId === tenantId) {
+      throw new Error(
+        `This number (${normalized}) is already registered for this practice. Edit it in the list above or remove it first.`
+      );
+    }
+    throw new Error(
+      `This number (${normalized}) is already used by tenant "${existing.tenant.slug}". Each DID can only be mapped once.`
+    );
+  }
+
   const phone = await prisma.tenantPhoneNumber.create({
     data: {
       tenantId,

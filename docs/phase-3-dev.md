@@ -35,9 +35,9 @@ x-admin-secret: <PLATFORM_ADMIN_SECRET>
 
 ## Not in Phase 3
 
-- Practice-owner self-service login (Phase 3b)
+- Practice-owner portal → [phase-3b-dev.md](phase-3b-dev.md)
 - S3 logo upload (use branding JSON URLs for now)
-- Stripe billing (Phase 4)
+- Stripe billing (last phase — see README)
 
 ## Generate session token (optional)
 

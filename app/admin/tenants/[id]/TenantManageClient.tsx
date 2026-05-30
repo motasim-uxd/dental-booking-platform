@@ -89,7 +89,8 @@ export default function TenantManageClient({ tenant }: { tenant: Tenant }) {
   async function onAddBot(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
     const res = await fetch(`/api/admin/tenants/${tenant.id}/bots`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -104,7 +105,7 @@ export default function TenantManageClient({ tenant }: { tenant: Tenant }) {
       setError(json?.error ?? "Add bot failed");
       return;
     }
-    e.currentTarget.reset();
+    form.reset();
     router.refresh();
   }
 
@@ -135,7 +136,8 @@ export default function TenantManageClient({ tenant }: { tenant: Tenant }) {
   async function onAddPhone(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
     const res = await fetch(`/api/admin/tenants/${tenant.id}/phones`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -150,7 +152,7 @@ export default function TenantManageClient({ tenant }: { tenant: Tenant }) {
       setError(json?.error ?? "Add phone failed");
       return;
     }
-    e.currentTarget.reset();
+    form.reset();
     router.refresh();
   }
 

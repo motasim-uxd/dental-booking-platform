@@ -27,8 +27,10 @@ npm run dev
 ```
 
 - Web UI: http://localhost:3000/book  
-- Docs: [docs/phase-0-dev.md](docs/phase-0-dev.md) … [docs/phase-3-dev.md](docs/phase-3-dev.md)
-- Admin: http://localhost:3000/admin (see `PLATFORM_ADMIN_SECRET`)  
+- Docs: [docs/phase-0-dev.md](docs/phase-0-dev.md) … [docs/phase-3b-dev.md](docs/phase-3b-dev.md)
+- Production voice: [docs/phase-2-production-checklist.md](docs/phase-2-production-checklist.md)
+- Platform admin: http://localhost:3000/admin (`PLATFORM_ADMIN_SECRET`)
+- Practice portal: http://localhost:3000/practice/register  
 - Roadmap PDF: [docs/Dental-Booking-Platform-Development-Phases.pdf](docs/Dental-Booking-Platform-Development-Phases.pdf)
 
 ## API overview
@@ -50,8 +52,10 @@ Legacy Smile Squad routes: `/api/availability`, `/api/web/book` (tenant `smilesq
 | 0 ✓ | Postgres, tenants, Oryx adapter, APIs |
 | 1 ✓ | `/book/[slug]`, web form feature gate |
 | 2 ✓ | Multi-tenant Lex + `resolve-phone` |
-| 3 ✓ | Admin portal (`/admin`) |
-| 3b+ | Practice signup, Stripe |
+| 3 ✓ | Platform admin (`/admin`) |
+| 3b ✓ | Practice signup + portal (`/practice`) |
+| 5 | More PMS adapters (Open Dental, …) |
+| 6 (last) | Stripe billing |
 
 ## HIPAA note
 

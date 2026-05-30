@@ -18,7 +18,7 @@ docker compose up -d postgres
 Connection string (default):
 
 ```
-postgresql://dental:dental@localhost:5432/dental_booking
+postgresql://dental:dental@localhost:5433/dental_booking
 ```
 
 ## 2. Environment
