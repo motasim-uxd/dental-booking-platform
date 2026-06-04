@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import PracticeNav from "./components/PracticeNav";
 
 type Props = {
   email: string;
+  showSchedule: boolean;
+  appointmentCount: number;
   tenant: {
     slug: string;
     name: string;
@@ -14,7 +17,12 @@ type Props = {
   };
 };
 
-export default function PracticeDashboard({ email, tenant }: Props) {
+export default function PracticeDashboard({
+  email,
+  tenant,
+  showSchedule,
+  appointmentCount,
+}: Props) {
   const router = useRouter();
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
@@ -22,12 +30,6 @@ export default function PracticeDashboard({ email, tenant }: Props) {
 
   const features = tenant.features ?? {};
   const webFormRequested = Boolean(features.webFormRequestedAt);
-
-  async function logout() {
-    await fetch("/api/practice/logout", { method: "POST" });
-    router.push("/practice/login");
-    router.refresh();
-  }
 
   async function requestWebForm() {
     setError("");
@@ -49,22 +51,7 @@ export default function PracticeDashboard({ email, tenant }: Props) {
 
   return (
     <>
-      <header
-        style={{
-          background: "#0f2840",
-          color: "#fff",
-          padding: "0.75rem 1.25rem",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <strong>Practice portal</strong>
-        <span style={{ fontSize: "0.85rem" }}>{email}</span>
-        <button type="button" className="admin-btn admin-btn-ghost" onClick={() => void logout()}>
-          Sign out
-        </button>
-      </header>
+      <PracticeNav email={email} showSchedule={showSchedule} active="dashboard" />
       <main className="admin-main">
         <div className="admin-card">
           <h2>{tenant.name}</h2>
@@ -110,6 +97,26 @@ export default function PracticeDashboard({ email, tenant }: Props) {
             </p>
           ) : null}
         </div>
+        {showSchedule ? (
+          <div className="admin-card">
+            <h3 style={{ marginTop: 0 }}>Internal PMS schedule</h3>
+            <p style={{ fontSize: "0.95rem", color: "#334155", lineHeight: 1.6 }}>
+              Bookings from web, voice, or API that land in your platform schedule appear in{" "}
+              <strong>Appointments</strong>
+              {appointmentCount > 0 ? (
+                <>
+                  {" "}
+                  — you have <strong>{appointmentCount}</strong> on record.
+                </>
+              ) : (
+                <> — none yet.</>
+              )}
+            </p>
+            <Link href="/practice/appointments" className="admin-btn admin-btn-primary">
+              View appointments
+            </Link>
+          </div>
+        ) : null}
         <div className="admin-card">
           <h3 style={{ marginTop: 0 }}>Next steps</h3>
           <ol style={{ fontSize: "0.9rem", color: "#334155", lineHeight: 1.6 }}>

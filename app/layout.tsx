@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Smile Squad — Oryx scheduling",
-  description: "Online scheduling for Smile Squad Pediatric Dentistry.",
+  title: "Dental Booking Platform",
+  description: "Multi-tenant dental practice scheduling — web booking, voice, and PMS integration.",
 };
 
 /** Minimal root layout. /book does not load Tailwind (see app/(site)/layout.tsx). */

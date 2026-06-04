@@ -26,6 +26,18 @@ In `/admin` → tenant → set **Integration mode** = `dual` and enable **Dual b
 
 Leave Smile Squad on `external_only` until you intentionally test dual.
 
+## View bookings in the practice portal
+
+1. Seed: `npm run db:seed` (creates `demo-internal` + practice user).
+2. Sign in: http://localhost:3000/practice/login  
+   - Email: `demo-internal@example.com` (or `SEED_DEMO_INTERNAL_EMAIL`)  
+   - Password: `DemoInternal1!` (or `SEED_DEMO_INTERNAL_PASSWORD`)
+3. Open **Appointments**: http://localhost:3000/practice/appointments  
+4. Create a booking via http://localhost:3000/book/demo-internal (preview code from seed / `WEB_FORM_PREVIEW_CODE`) or FastAPI `POST /v1/booking`.
+5. Click **Refresh** on the appointments page — the row appears from the `appointments` table.
+
+Requires `DATABASE_URL`, and for web/voice book paths: FastAPI + `FASTAPI_BASE_URL` + `S2S_SHARED_SECRET` when Next proxies booking to FastAPI.
+
 ## Local test (PowerShell)
 
 ```powershell
