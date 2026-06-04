@@ -39,3 +39,7 @@ infra/.terraform/
 
 # docs tooling (regenerate PDFs locally)
 docs/node_modules/
+
+# python
+__pycache__/
+*.pyc

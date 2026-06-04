@@ -21,7 +21,9 @@ cd e:\Projects\dental-booking-platform
 powershell -ExecutionPolicy Bypass -File .\scripts\deploy-ecs-dev.ps1
 ```
 
-Wait 5–15 minutes (Docker build + push). At the end you should see a line like:
+Wait 10–20 minutes (Docker build + push). If build fails on `prisma/schema.prisma not found`, pull latest `main` (Dockerfile copies `prisma/` before `npm ci`).
+
+At the end you should see a line like:
 
 ```text
 http://oryx-agent-dev-alb-xxxxxxxx.us-east-1.elb.amazonaws.com/book?code=...

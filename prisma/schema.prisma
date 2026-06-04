@@ -39,6 +39,12 @@ enum PlatformUserRole {
   practice_admin
 }
 
+enum BookingStatus {
+  pending
+  confirmed
+  failed
+}
+
 model Tenant {
   id                  String   @id @default(uuid()) @db.Uuid
   slug                String   @unique
@@ -56,6 +62,7 @@ model Tenant {
   phoneNumbers   TenantPhoneNumber[]
   subscription   Subscription?
   platformUsers  PlatformUser[]
+  bookingAttempts BookingAttempt[]
 
   @@map("tenants")
 }
@@ -137,4 +144,24 @@ model Subscription {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
+}
+
+model BookingAttempt {
+  id             String        @id @default(uuid()) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  channel        String
+  idempotencyKey String        @map("idempotency_key")
+  status         BookingStatus @default(pending)
+  externalId     String?       @map("external_id")
+  requestPayload Json          @default("{}") @map("request_payload")
+  responseBody   Json          @default("{}") @map("response_body")
+  errorMessage   String?       @map("error_message")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, createdAt])
+  @@map("booking_attempts")
 }

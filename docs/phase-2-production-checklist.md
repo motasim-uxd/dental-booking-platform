@@ -4,9 +4,21 @@ Use this when Smile Squad (or any tenant) should take **real calls** on Connect.
 
 ## 1. Host the platform API
 
-- Deploy `dental-booking-platform` (ECS, etc.)
-- Set `DATABASE_URL` on the Next.js service
-- `PLATFORM_INTERNAL_SECRET`, `CONNECT_WEBHOOK_SECRET`
+- Deploy `dental-booking-platform` (ECS, etc.): `.\scripts\deploy-ecs-dev.ps1`
+- Update **Secrets Manager** (`oryx-agent-dev/env` or your `${project}-dev/env`) — `APP_ENV_JSON` must be valid JSON, for example:
+
+```json
+{
+  "DATABASE_URL": "postgresql://USER:PASS@your-rds-host:5432/dental_booking",
+  "PLATFORM_INTERNAL_SECRET": "...",
+  "CONNECT_WEBHOOK_SECRET": "...",
+  "PLATFORM_ADMIN_SECRET": "...",
+  "WEB_FORM_PREVIEW_CODE": "SSQ-PREVIEW-2026"
+}
+```
+
+- Run `npx prisma migrate deploy` against that RDS once
+- Force new ECS tasks after secret changes: re-run deploy script or `aws ecs update-service --force-new-deployment`
 
 ## 2. Database
 

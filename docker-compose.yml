@@ -25,6 +25,19 @@ services:
       - "9000:9000"
     restart: unless-stopped
 
+  fastapi:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    environment:
+      FASTAPI_PORT: "8001"
+      S2S_SHARED_SECRET: ${S2S_SHARED_SECRET:-dev-secret-change-me}
+      # Use the docker network hostname, not localhost.
+      DATABASE_URL: postgresql://dental:dental@postgres:5432/dental_booking
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+
 volumes:
   dental_pg_data:
 
