@@ -95,7 +95,52 @@ async function main() {
     console.log(`Seeded phone ${seedPhone} → tenant smilesquad / bot booking`);
   }
 
+  const internal = await prisma.tenant.upsert({
+    where: { slug: "demo-internal" },
+    create: {
+      slug: "demo-internal",
+      name: "Demo Internal PMS Practice",
+      status: "active",
+      features: { voice: true, webForm: true },
+      branding: { displayName: "Demo Internal" },
+      webFormAccessCode: webFormAccessCode ?? "DEMO-INTERNAL",
+    },
+    update: {
+      name: "Demo Internal PMS Practice",
+      webFormAccessCode: webFormAccessCode ?? undefined,
+    },
+  });
+
+  await prisma.tenantPmsConfig.upsert({
+    where: { tenantId: internal.id },
+    create: {
+      tenantId: internal.id,
+      pmsType: "internal",
+      integrationMode: "internal_only",
+      config: {},
+      operatoryRules: DEFAULT_OPERATORY_RULES as object,
+    },
+    update: {
+      pmsType: "internal",
+      integrationMode: "internal_only",
+      operatoryRules: DEFAULT_OPERATORY_RULES as object,
+    },
+  });
+
+  await prisma.provider.upsert({
+    where: {
+      tenantId_oralId: { tenantId: internal.id, oralId: 1 },
+    },
+    create: {
+      tenantId: internal.id,
+      oralId: 1,
+      displayName: "Default Provider",
+    },
+    update: { displayName: "Default Provider", active: true },
+  });
+
   console.log(`Seeded tenant: ${tenant.slug} (${tenant.id})`);
+  console.log(`Seeded internal demo: ${internal.slug} (${internal.id})`);
 }
 
 main()

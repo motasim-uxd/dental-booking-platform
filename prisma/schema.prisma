@@ -18,6 +18,13 @@ enum PmsType {
   open_dental
   dentrix
   custom_api
+  internal
+}
+
+enum IntegrationMode {
+  external_only
+  internal_only
+  dual
 }
 
 enum BotType {
@@ -43,6 +50,13 @@ enum BookingStatus {
   pending
   confirmed
   failed
+  partial
+}
+
+enum AppointmentStatus {
+  scheduled
+  cancelled
+  completed
 }
 
 model Tenant {
@@ -63,6 +77,9 @@ model Tenant {
   subscription   Subscription?
   platformUsers  PlatformUser[]
   bookingAttempts BookingAttempt[]
+  patients       Patient[]
+  providers      Provider[]
+  appointments   Appointment[]
 
   @@map("tenants")
 }
@@ -82,12 +99,14 @@ model PlatformUser {
 }
 
 model TenantPmsConfig {
-  tenantId        String   @id @map("tenant_id") @db.Uuid
-  pmsType         PmsType  @map("pms_type")
-  config          Json     @default("{}")
-  operatoryRules  Json     @default("{}") @map("operatory_rules")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  tenantId             String           @id @map("tenant_id") @db.Uuid
+  pmsType              PmsType          @map("pms_type")
+  integrationMode      IntegrationMode  @default(external_only) @map("integration_mode")
+  dualBookingEnabled   Boolean          @default(false) @map("dual_booking_enabled")
+  config               Json             @default("{}")
+  operatoryRules       Json             @default("{}") @map("operatory_rules")
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -164,4 +183,65 @@ model BookingAttempt {
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, createdAt])
   @@map("booking_attempts")
+}
+
+model Patient {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  firstName     String   @map("first_name")
+  lastName      String   @map("last_name")
+  preferredName String?  @map("preferred_name")
+  email         String
+  phoneNumber   String   @map("phone_number")
+  dob           Json
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@unique([tenantId, email])
+  @@map("patients")
+}
+
+model Provider {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  oralId      Int      @map("oral_id")
+  displayName String   @map("display_name")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@unique([tenantId, oralId])
+  @@map("providers")
+}
+
+model Appointment {
+  id           String            @id @default(uuid()) @db.Uuid
+  tenantId     String            @map("tenant_id") @db.Uuid
+  patientId    String            @map("patient_id") @db.Uuid
+  providerId   String?           @map("provider_id") @db.Uuid
+  operatoryId  Int               @map("operatory_id")
+  oralId       Int               @map("oral_id")
+  apptType     String            @map("appt_type")
+  reason       String?
+  notes        String?
+  status       AppointmentStatus @default(scheduled)
+  startsAt     DateTime          @map("starts_at") @db.Timestamptz
+  endsAt       DateTime          @map("ends_at") @db.Timestamptz
+  channel      String?
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient  Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  provider Provider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, operatoryId, startsAt])
+  @@index([tenantId, startsAt])
+  @@map("appointments")
 }

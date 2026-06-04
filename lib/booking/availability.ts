@@ -6,6 +6,7 @@ import {
   scheduleApptTypeForOryxQuery,
   shouldFallbackScheduleApptType,
 } from "@/lib/pms/operatory-rules";
+import { getAvailability, isFastApiConfigured } from "@/lib/booking/fastapi-client";
 import { AvailabilityQuerySchema } from "@/lib/schemas";
 
 function getDayOfWeekFromISO(iso: string) {
@@ -33,6 +34,20 @@ export async function handleAvailability(
 
   const apptType = parsed.data.apptType || "Cleaning";
   const firstAvail = parsed.data.firstAvail ?? false;
+
+  if (ctx.integrationMode === "internal_only" && isFastApiConfigured()) {
+    const fa = await getAvailability({
+      tenantSlug: ctx.tenant.slug,
+      date: parsed.data.date,
+      apptType,
+      firstAvail,
+    });
+    if (!fa.success) {
+      return { status: 502 as const, body: errorPayload(fa.error ?? "Availability failed") };
+    }
+    return { status: 200 as const, body: { success: true as const, data: fa.data ?? [] } };
+  }
+
   const rules = ctx.operatoryRules;
 
   const providerIdToOralId = new Map<number, number>();

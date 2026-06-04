@@ -36,7 +36,10 @@ async def fetch_tenant_pms_by_slug(slug: str) -> dict[str, Any] | None:
         t.slug as tenant_slug,
         t.status as tenant_status,
         p.pms_type as pms_type,
-        p.config::text as pms_config
+        p.integration_mode as integration_mode,
+        p.dual_booking_enabled as dual_booking_enabled,
+        p.config::text as pms_config,
+        p.operatory_rules::text as operatory_rules
       FROM tenants t
       JOIN tenant_pms_config p ON p.tenant_id = t.id
       WHERE t.slug = $1
@@ -55,6 +58,14 @@ async def fetch_tenant_pms_by_slug(slug: str) -> dict[str, Any] | None:
         out["pms_config"] = {}
     elif raw_cfg is None:
       out["pms_config"] = {}
+    raw_rules = out.get("operatory_rules")
+    if isinstance(raw_rules, str) and raw_rules.strip():
+      try:
+        out["operatory_rules"] = json.loads(raw_rules)
+      except Exception:
+        out["operatory_rules"] = {}
+    elif raw_rules is None:
+      out["operatory_rules"] = {}
     return out
 
 

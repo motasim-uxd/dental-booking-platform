@@ -82,6 +82,28 @@ npm run db:seed
 
 Without `DATABASE_URL`, `/book` may still work in legacy mode; `/admin` and `/practice` need Postgres.
 
+## FastAPI on ECS (DEV)
+
+1. Add to Secrets Manager `oryx-agent-dev/env` (append keys; do not rotate `CONNECT_WEBHOOK_SECRET`):
+   - `S2S_SHARED_SECRET` — same value as local `.env` / `.env.local`
+   - `DATABASE_URL` — same RDS URL as Next.js
+   - `FASTAPI_BASE_URL` — internal URL reachable from the Next.js task (e.g. Service Connect DNS once wired)
+2. Create CloudWatch log group `/ecs/oryx-agent-fastapi-dev` if missing.
+3. Deploy image and service:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\deploy-fastapi-dev.ps1 -CreateService
+```
+
+Subsequent deploys:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\deploy-fastapi-dev.ps1
+```
+
+4. Redeploy Next.js ECS so `APP_ENV_JSON` includes `FASTAPI_BASE_URL` and `S2S_SHARED_SECRET`.
+5. Run [mvp-chain-test.md](./mvp-chain-test.md) against the ALB `/api/book` path.
+
 ## 6. Verify
 
 - Open `/api/health` → `200`

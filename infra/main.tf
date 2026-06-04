@@ -225,7 +225,9 @@ resource "aws_ecs_task_definition" "app" {
         { name = "APP_ENV_JSON", valueFrom = aws_secretsmanager_secret.app_env.arn },
         # Allow reading a specific JSON key directly as an env var.
         # Secret value must be a JSON object like: { "WEB_FORM_PREVIEW_CODE": "SSQ-PREVIEW-2026" }
-        { name = "WEB_FORM_PREVIEW_CODE", valueFrom = "${aws_secretsmanager_secret.app_env.arn}:WEB_FORM_PREVIEW_CODE::" }
+        { name = "WEB_FORM_PREVIEW_CODE", valueFrom = "${aws_secretsmanager_secret.app_env.arn}:WEB_FORM_PREVIEW_CODE::" },
+        { name = "FASTAPI_BASE_URL", valueFrom = "${aws_secretsmanager_secret.app_env.arn}:FASTAPI_BASE_URL::" },
+        { name = "S2S_SHARED_SECRET", valueFrom = "${aws_secretsmanager_secret.app_env.arn}:S2S_SHARED_SECRET::" }
       ]
       logConfiguration = {
         logDriver = "awslogs"

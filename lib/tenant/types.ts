@@ -37,8 +37,12 @@ export interface TenantBot {
   enabled: boolean;
 }
 
+export type IntegrationMode = "external_only" | "internal_only" | "dual";
+
 export interface TenantPmsSummary {
   pmsType: PmsType;
+  integrationMode: IntegrationMode;
+  dualBookingEnabled: boolean;
   operatoryRules: OperatoryRulesConfig;
   /** Server-side PMS connection config (do not expose in public/resolve-phone APIs). */
   config: Record<string, unknown>;

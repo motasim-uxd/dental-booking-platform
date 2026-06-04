@@ -54,3 +54,15 @@ variable "tags" {
   default     = {}
 }
 
+variable "fastapi_image" {
+  type        = string
+  description = "FastAPI middleware container image (ECR tag fastapi-dev)"
+  default     = ""
+}
+
+variable "enable_fastapi_service" {
+  type        = bool
+  description = "Run FastAPI ECS service with Cloud Map DNS fastapi.<cluster>.local:8001"
+  default     = false
+}
+

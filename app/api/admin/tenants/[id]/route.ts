@@ -32,6 +32,8 @@ export async function PATCH(req: Request, context: Ctx) {
       pmsType: body?.pmsType,
       oryxRealm: body?.oryxRealm,
       operatoryRules: body?.operatoryRules,
+      integrationMode: body?.integrationMode,
+      dualBookingEnabled: body?.dualBookingEnabled,
     });
     if (!tenant) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ tenant });

@@ -16,6 +16,9 @@ export function createPmsAdapter(record: TenantPmsConfigRecord): PmsAdapter {
         operatoryRules
       );
     }
+    case "internal":
+      // Booking/availability for internal tenants go through FastAPI (see lib/booking/fastapi-client.ts).
+      return new OryxPmsAdapter({ realm: "internal-via-fastapi" }, operatoryRules);
     case "open_dental":
     case "dentrix":
     case "custom_api":

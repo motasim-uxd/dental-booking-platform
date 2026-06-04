@@ -1,7 +1,7 @@
 import type { BookOnlineApptInput } from "@/lib/oryxClient";
 import type { OperatoryRulesConfig } from "@/lib/pms/operatory-rules";
 
-export type PmsType = "oryx" | "open_dental" | "dentrix" | "custom_api";
+export type PmsType = "oryx" | "open_dental" | "dentrix" | "custom_api" | "internal";
 
 export interface TenantPmsConfigRecord {
   pmsType: PmsType;

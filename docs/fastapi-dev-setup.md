@@ -9,6 +9,8 @@ Add these to `.env.local` (or export in your shell):
 ```env
 FASTAPI_BASE_URL=http://localhost:8001
 S2S_SHARED_SECRET=dev-secret-change-me
+
+Docker Compose reads **`.env`** (not `.env.local`). Copy `S2S_SHARED_SECRET` into `.env` so the `fastapi` container matches Next.js.
 ```
 
 ## 2) Run FastAPI
@@ -36,6 +38,18 @@ Start Next.js as usual (`npm run dev`), then hit:
 
 - `GET /api/internal/fastapi-health`
 - `POST /api/internal/fastapi-booking` (proxy to FastAPI `POST /v1/booking`)
+
+FastAPI (S2S, port 8001) — **middleware hub** per architecture diagram:
+
+| Endpoint | Layer |
+|----------|--------|
+| `GET /health` | Health |
+| `POST /v1/booking` | PMS connectors + SQS writeback + notifications |
+| `GET /v1/availability` | Scheduling engine |
+| `POST /v1/faq/escalate` | Nova Micro SLM |
+| `POST /v1/faq/premium` | Claude premium |
+
+Next BFF proxies: `/api/internal/faq-escalate`, `/api/internal/faq-premium` ([lex-faq-escalation.md](./lex-faq-escalation.md)).
 
 Expected:
 

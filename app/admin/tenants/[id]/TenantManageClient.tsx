@@ -31,6 +31,8 @@ type Tenant = {
   maxBots: number;
   pmsConfig: {
     pmsType: string;
+    integrationMode: string;
+    dualBookingEnabled: boolean;
     config: unknown;
     operatoryRules: unknown;
   } | null;
@@ -71,6 +73,8 @@ export default function TenantManageClient({ tenant }: { tenant: Tenant }) {
       name: String(fd.get("name") ?? ""),
       status: String(fd.get("status") ?? "active"),
       oryxRealm: String(fd.get("oryxRealm") ?? ""),
+      integrationMode: String(fd.get("integrationMode") ?? "external_only"),
+      dualBookingEnabled: fd.get("dualBookingEnabled") === "on",
       features: {
         voice: fd.get("voice") === "on",
         webForm: fd.get("webForm") === "on",
@@ -199,6 +203,28 @@ export default function TenantManageClient({ tenant }: { tenant: Tenant }) {
                 name="oryxRealm"
                 defaultValue={config.realm ?? ""}
               />
+            </div>
+            <div className="admin-field">
+              <label htmlFor="integrationMode">Integration mode</label>
+              <select
+                id="integrationMode"
+                name="integrationMode"
+                defaultValue={tenant.pmsConfig?.integrationMode ?? "external_only"}
+              >
+                <option value="external_only">external_only (Oryx)</option>
+                <option value="internal_only">internal_only (platform DB)</option>
+                <option value="dual">dual (Oryx + mirror)</option>
+              </select>
+            </div>
+            <div className="admin-field">
+              <label>
+                <input
+                  type="checkbox"
+                  name="dualBookingEnabled"
+                  defaultChecked={Boolean(tenant.pmsConfig?.dualBookingEnabled)}
+                />{" "}
+                Dual booking enabled (mirror to internal when mode=dual)
+              </label>
             </div>
             <div className="admin-field">
               <label htmlFor="webFormAccessCode">Web form access code</label>

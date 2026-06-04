@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { handleBook } from "@/lib/booking/book";
 import { assertWebFormFeature, loadBookingContext } from "@/lib/booking/context";
+import {
+  isFastApiConfigured,
+  postBooking,
+  toWebBookResult,
+} from "@/lib/booking/fastapi-client";
 import { assertTenantChannelAuth } from "@/lib/booking/preview-auth";
 import { rateLimit } from "@/lib/booking/rate-limit";
 
@@ -45,6 +50,16 @@ export async function POST(req: Request, context: RouteContext) {
   const body = await req.json().catch(() => null);
   if (body && typeof body === "object" && (body as { website?: string }).website) {
     return NextResponse.json({ success: false, error: { message: "Invalid request." } }, { status: 400 });
+  }
+
+  if (isFastApiConfigured()) {
+    const json = await postBooking({
+      tenantSlug: slug,
+      channel: "web",
+      payload: body,
+    });
+    const result = toWebBookResult(json);
+    return NextResponse.json(result.body, { status: result.status });
   }
 
   const result = await handleBook(ctx, body);

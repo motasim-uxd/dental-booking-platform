@@ -1,7 +1,13 @@
 import { prisma } from "@/lib/db";
 import { DEFAULT_OPERATORY_RULES } from "@/lib/pms/operatory-rules";
 import { getTenantService } from "@/lib/tenant/tenant-service";
-import type { BotType, PmsType, Prisma, TenantStatus } from "@prisma/client";
+import type {
+  BotType,
+  IntegrationMode,
+  PmsType,
+  Prisma,
+  TenantStatus,
+} from "@prisma/client";
 
 function asJson(value: Record<string, unknown>): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
@@ -124,6 +130,8 @@ export type UpdateTenantInput = {
   pmsType?: PmsType;
   oryxRealm?: string;
   operatoryRules?: Record<string, unknown>;
+  integrationMode?: IntegrationMode;
+  dualBookingEnabled?: boolean;
 };
 
 export async function updateTenant(id: string, input: UpdateTenantInput) {
@@ -158,7 +166,9 @@ export async function updateTenant(id: string, input: UpdateTenantInput) {
     if (
       input.pmsType !== undefined ||
       input.oryxRealm !== undefined ||
-      input.operatoryRules !== undefined
+      input.operatoryRules !== undefined ||
+      input.integrationMode !== undefined ||
+      input.dualBookingEnabled !== undefined
     ) {
       const current = await tx.tenantPmsConfig.findUnique({ where: { tenantId: id } });
       const config = (current?.config ?? {}) as Record<string, unknown>;
@@ -179,6 +189,12 @@ export async function updateTenant(id: string, input: UpdateTenantInput) {
           ...(input.oryxRealm !== undefined ? { config: asJson(config) } : {}),
           ...(input.operatoryRules !== undefined
             ? { operatoryRules: asJson(input.operatoryRules as Record<string, unknown>) }
+            : {}),
+          ...(input.integrationMode !== undefined
+            ? { integrationMode: input.integrationMode }
+            : {}),
+          ...(input.dualBookingEnabled !== undefined
+            ? { dualBookingEnabled: input.dualBookingEnabled }
             : {}),
         },
       });

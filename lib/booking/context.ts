@@ -7,7 +7,7 @@ import {
 } from "@/lib/pms/operatory-rules";
 import type { PmsAdapter } from "@/lib/pms/types";
 import { resolveTenantFromSlug } from "@/lib/tenant/resolver";
-import type { Tenant, TenantFeatures } from "@/lib/tenant/types";
+import type { IntegrationMode, Tenant, TenantFeatures } from "@/lib/tenant/types";
 
 export const DEFAULT_TENANT_SLUG = "smilesquad";
 
@@ -15,6 +15,7 @@ export interface BookingContext {
   tenant: Tenant;
   adapter: PmsAdapter;
   operatoryRules: OperatoryRulesConfig;
+  integrationMode: IntegrationMode;
   fromDatabase: boolean;
 }
 
@@ -52,6 +53,7 @@ export async function loadBookingContext(
       tenant: ctx.tenant,
       adapter,
       operatoryRules: ctx.pms.operatoryRules,
+      integrationMode: ctx.pms.integrationMode,
       fromDatabase: true,
     };
   }
@@ -72,6 +74,7 @@ function legacyFallback(): BookingContext {
     tenant: fallbackTenant(DEFAULT_TENANT_SLUG),
     adapter,
     operatoryRules: rules,
+    integrationMode: "external_only",
     fromDatabase: false,
   };
 }

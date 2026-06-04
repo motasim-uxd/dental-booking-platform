@@ -8,6 +8,52 @@ from urllib.parse import quote
 
 from app.contracts.booking import BookingRequest, BookingResponse
 
+_ID_KEYS = (
+  "appointmentId",
+  "apptId",
+  "onlineApptId",
+  "id",
+  "appointment_id",
+)
+
+
+def extract_oryx_appointment_id(data: Any) -> str | None:
+  """Best-effort parse of Oryx book response (shape varies by realm/version)."""
+  if data is None:
+    return None
+  if isinstance(data, dict):
+    online = data.get("onlineAppt")
+    if isinstance(online, dict):
+      found = _id_from_dict(online)
+      if found:
+        return found
+    appointment = data.get("appointment")
+    if isinstance(appointment, dict):
+      found = _id_from_dict(appointment)
+      if found:
+        return found
+    found = _id_from_dict(data)
+    if found:
+      return found
+    for value in data.values():
+      found = extract_oryx_appointment_id(value)
+      if found:
+        return found
+  elif isinstance(data, list):
+    for item in data:
+      found = extract_oryx_appointment_id(item)
+      if found:
+        return found
+  return None
+
+
+def _id_from_dict(obj: dict[str, Any]) -> str | None:
+  for key in _ID_KEYS:
+    value = obj.get(key)
+    if value is not None and value != "":
+      return str(value)
+  return None
+
 
 @dataclass(frozen=True)
 class OryxConfig:
@@ -98,13 +144,13 @@ class OryxAdapter:
           message=f"Oryx booking failed (HTTP {res.status_code})",
         )
 
-      # Oryx response schema varies; return raw id if present.
       data = res.json()
-      external_id = None
-      for key in ("appointmentId", "apptId", "id"):
-        if isinstance(data, dict) and key in data and data[key] is not None:
-          external_id = str(data[key])
-          break
+      external_id = extract_oryx_appointment_id(data)
 
-      return BookingResponse(ok=True, status="confirmed", external_appointment_id=external_id)
+      return BookingResponse(
+        ok=True,
+        status="confirmed",
+        external_appointment_id=external_id,
+        message=None if external_id else "Booked in Oryx but appointment id not in response",
+      )
 

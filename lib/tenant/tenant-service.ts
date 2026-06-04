@@ -67,11 +67,17 @@ function mapBot(row: {
 
 function mapPms(row: {
   pmsType: string;
+  integrationMode?: string;
+  dualBookingEnabled?: boolean;
   config: unknown;
   operatoryRules: unknown;
 }): TenantPmsSummary {
+  const mode = row.integrationMode ?? "external_only";
   return {
     pmsType: row.pmsType as PmsType,
+    integrationMode:
+      mode === "internal_only" || mode === "dual" ? mode : "external_only",
+    dualBookingEnabled: Boolean(row.dualBookingEnabled),
     operatoryRules: parseOperatoryRules(row.operatoryRules),
     config: (row.config ?? {}) as Record<string, unknown>,
   };

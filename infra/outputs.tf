@@ -33,3 +33,25 @@ output "secretsmanager_env_secret_arn" {
   description = "Secret ARN where runtime env JSON should be stored"
 }
 
+output "fastapi_internal_url" {
+  value       = "http://fastapi.${aws_service_discovery_private_dns_namespace.platform.name}:8001"
+  description = "Set FASTAPI_BASE_URL in Secrets Manager for Next.js → middleware"
+}
+
+output "sqs_appointment_writeback_url" {
+  value = aws_sqs_queue.appointment_writeback.url
+}
+
+output "sqs_notifications_url" {
+  value = aws_sqs_queue.notifications.url
+}
+
+output "dynamodb_conversation_table" {
+  value = aws_dynamodb_table.conversation_sessions.name
+}
+
+output "ecs_fastapi_service_name" {
+  value       = length(aws_ecs_service.fastapi) > 0 ? aws_ecs_service.fastapi[0].name : ""
+  description = "FastAPI ECS service name when enabled"
+}
+
