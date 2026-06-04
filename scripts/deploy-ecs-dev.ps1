@@ -122,8 +122,25 @@ function Update-EcsServiceImage {
   if ($containers -isnot [System.Array]) { $containers = @($containers) }
   if ($containers.Count -lt 1) { throw "Task '$Family' has no containers." }
 
-  # Patch only the container "image" field in raw AWS JSON (valid JSON for register-task-definition).
-  $patchedContainersJson = [regex]::Replace($containersJson, '(?<="image"\s*:\s*")[^"]+', $ImageUri, 1)
+  # Per-key SM refs (e.g. :CONNECT_WEBHOOK_SECRET::) require strict JSON in Secrets Manager.
+  # DEV secret uses pseudo-JSON in APP_ENV_JSON only — keep that single injection (see instrumentation.ts).
+  $appEnvSecret = $null
+  foreach ($s in $containers[0].secrets) {
+    if ($s.name -eq "APP_ENV_JSON" -and $s.valueFrom -notmatch ":[A-Za-z0-9_]+::") {
+      $appEnvSecret = $s
+      break
+    }
+  }
+  if (-not $appEnvSecret -and $containers[0].secrets.Count -gt 0) {
+    $appEnvSecret = $containers[0].secrets | Where-Object { $_.valueFrom -notmatch ":[A-Za-z0-9_]+::" } | Select-Object -First 1
+  }
+  if ($appEnvSecret) {
+    $containers[0].secrets = @($appEnvSecret)
+    Write-Host "ECS secrets: APP_ENV_JSON only (removed per-key SM refs that break task startup)."
+  }
+
+  $containers[0].image = $ImageUri
+  $patchedContainersJson = ($containers | ConvertTo-Json -Depth 12 -Compress)
 
   $taskFamily = (aws ecs describe-task-definition --task-definition $Family --region $Region --query "$q.family" --output text).Trim()
   $taskRoleArn = (aws ecs describe-task-definition --task-definition $Family --region $Region --query "$q.taskRoleArn" --output text).Trim()
