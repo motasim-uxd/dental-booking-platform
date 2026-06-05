@@ -11,7 +11,7 @@ const OFFICE_OPEN_MINUTES = 8 * 60;
 const OFFICE_CLOSE_MINUTES = 16 * 60;
 
 const DEFAULT_TENANT_SLUG = () =>
-  String(process.env.DEFAULT_TENANT_SLUG || "smilesquad").trim().toLowerCase();
+  String(process.env.DEFAULT_TENANT_SLUG || "demo-internal").trim().toLowerCase();
 
 const DEFAULT_OPERATORY_RULES = {
   treatmentOperatoryId: 4,
